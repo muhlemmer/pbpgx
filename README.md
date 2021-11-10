@@ -55,4 +55,4 @@ if err != nil {
 
 BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2021, Tim Möhlmann. All rights reserved.
-Use of this source code is governed by a License that can be found in the (LICENSE)[LICENSE] file.
+Use of this source code is governed by a License that can be found in the [LICENSE](LICENSE) file.
