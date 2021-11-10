@@ -1,0 +1,39 @@
+syntax = "proto3";
+// Generate with:
+// protoc --go_out=./ --go_opt=paths=source_relative support.proto
+
+// Copyright (c) 2021, Tim Möhlmann. All rights reserved.
+// Use of this source code is governed by a License that can be found in the LICENSE file.
+// SPDX-License-Identifier: BSD-3-Clause
+package support;
+option go_package = "github.com/muhlemmer/pbpgx/internal/support";
+
+import "google/protobuf/timestamp.proto";
+
+// Supported destination types
+message Supported {
+    bool bl = 1;
+    int32 i32 = 2;
+    int64 i64 = 3;
+    float f = 4;
+    double d = 5;
+    string s = 6;
+    bytes bt = 7;
+    uint32 u32 = 8;
+    uint64 u64 = 9;
+}
+
+// Unsupported destination types (for now)
+message Unsupported {
+    repeated bool bl = 1;
+    repeated int32 i32 = 2;
+    repeated int64 i64 = 3;
+    repeated float f = 4;
+    repeated double d = 5;
+    repeated string s = 6;
+    repeated bytes bt = 7;
+    repeated uint32 u32 = 8;
+    repeated uint64 u64 = 9;
+    Supported sup = 10; // Nested messages
+    google.protobuf.Timestamp ts = 11;
+}

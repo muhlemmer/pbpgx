@@ -1,0 +1,19 @@
+syntax = "proto3";
+// Generate with:
+// protoc --go_out=./ --go_opt=paths=source_relative example.proto
+
+// Copyright (c) 2021, Tim Möhlmann. All rights reserved.
+// Use of this source code is governed by a License that can be found in the LICENSE file.
+// SPDX-License-Identifier: BSD-3-Clause
+package example_gen;
+option go_package = "github.com/muhlemmer/pbpgx/example_gen";
+
+message Product {
+    int64 id = 1;
+    string tile = 2;
+    double price = 3;
+}
+
+message ProductList {
+    repeated Product products = 1;
+}

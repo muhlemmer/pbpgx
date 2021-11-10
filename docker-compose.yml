@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+
+  app:
+    build:
+      context: .devcontainer
+    restart: always
+    networks:
+      - database
+    ports:
+      - 127.0.0.1:6061:6060
+    volumes:
+      - .:/workspace:cached
+      - ${HOME}/.ssh:/home/vscode/.ssh
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    command: /bin/bash -c "cd /workspace && godoc -http :6060"
+
+  db:
+    image: postgres:latest
+    restart: always
+    networks:
+      - database
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_USER: testdata
+
+networks:
+  database:
