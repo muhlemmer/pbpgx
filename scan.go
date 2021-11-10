@@ -17,10 +17,17 @@ import (
 
 // convertIntValueFunc returns a function which calls passed function
 // with src asserted to the type of A and then converted to the type of B.
-// Panics if assertion is not possible.
-func convertIntValueFunc[A, B constraints.Integer](f func(src B) pr.Value) func(interface{}) pr.Value {
+func convertIntValueFunc[A, B constraints.Integer](f func(B) pr.Value) func(interface{}) pr.Value {
 	return func(src interface{}) pr.Value {
-		return f(B(src.(A)))
+		v, _ := src.(A)
+		return f(B(v))
+	}
+}
+
+func assertValueFunc[T any](f func(T) pr.Value) func(interface{}) pr.Value {
+	return func(src interface{}) pr.Value {
+		v, _ := src.(T)
+		return f(v)
 	}
 }
 
@@ -43,8 +50,6 @@ func (d *destination) value() pr.Value {
 func newDestination(fd pr.FieldDescriptor) *destination {
 	d := &destination{
 		fieldDesc: fd,
-		// Default, let protoreflect take care of assertion
-		valueFunc: pr.ValueOf,
 	}
 
 	if fd.Cardinality() == pr.Repeated {
@@ -54,24 +59,31 @@ func newDestination(fd pr.FieldDescriptor) *destination {
 	switch fd.Kind() {
 	case pr.BoolKind:
 		d.valueDecoder = new(pgtype.Bool)
+		d.valueFunc = assertValueFunc(pr.ValueOfBool)
 
 	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
 		d.valueDecoder = new(pgtype.Int4)
+		d.valueFunc = assertValueFunc(pr.ValueOfInt32)
 
 	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
 		d.valueDecoder = new(pgtype.Int8)
+		d.valueFunc = assertValueFunc(pr.ValueOfInt64)
 
 	case pr.FloatKind:
 		d.valueDecoder = new(pgtype.Float4)
+		d.valueFunc = assertValueFunc(pr.ValueOfFloat32)
 
 	case pr.DoubleKind:
 		d.valueDecoder = new(pgtype.Float8)
+		d.valueFunc = assertValueFunc(pr.ValueOfFloat64)
 
 	case pr.StringKind:
 		d.valueDecoder = new(pgtype.Text)
+		d.valueFunc = assertValueFunc(pr.ValueOfString)
 
 	case pr.BytesKind:
 		d.valueDecoder = new(pgtype.Bytea)
+		d.valueFunc = assertValueFunc(pr.ValueOfBytes)
 
 	case pr.Uint32Kind, pr.Fixed32Kind:
 		d.valueDecoder = new(pgtype.Int4)

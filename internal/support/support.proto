@@ -37,3 +37,9 @@ message Unsupported {
     Supported sup = 10; // Nested messages
     google.protobuf.Timestamp ts = 11;
 }
+
+// Simple is used for unit testing
+message Simple {
+    int32 id = 1;
+    string title = 2;
+}

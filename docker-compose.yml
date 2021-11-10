@@ -26,7 +26,7 @@ services:
       - database
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
-      POSTGRES_USER: testdata
+      POSTGRES_USER: pbpgx_tester
 
 networks:
   database:

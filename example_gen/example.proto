@@ -10,7 +10,7 @@ option go_package = "github.com/muhlemmer/pbpgx/example_gen";
 
 message Product {
     int64 id = 1;
-    string tile = 2;
+    string title = 2;
     double price = 3;
 }
 
