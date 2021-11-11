@@ -1,3 +1,6 @@
+[![Go](https://github.com/muhlemmer/pbpgx/actions/workflows/go.yml/badge.svg)](https://github.com/muhlemmer/pbpgx/actions/workflows/go.yml)
+
+
 # PBPGX
 
 Package pbpgx provides a toolkit for easier Protocol Buffers interaction with PostgreSQL databases.
