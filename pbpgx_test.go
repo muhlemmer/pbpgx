@@ -49,13 +49,13 @@ func closeConnPool() {
 }
 
 func execQuerySlice(sqls string) {
-	for _, sql := range strings.Split(sqls, ";") {
+	for i, sql := range strings.Split(sqls, ";") {
 		func() {
 			ctx, cancel := context.WithTimeout(testCtx, time.Second)
 			defer cancel()
 
 			if _, err := connPool.Exec(ctx, sql); err != nil {
-				panic(err)
+				panic(fmt.Errorf("execQuerySlice[%d]: %w", i, err))
 			}
 		}()
 	}
@@ -70,7 +70,7 @@ var dropTablesSQL string
 // testMain is a wrapper which allows defered statements to run before os.Exit is called.
 func testMain(m *testing.M) int {
 	var cancel context.CancelFunc
-	testCtx, cancel = context.WithTimeout(context.TODO(), 30*time.Second)
+	testCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	errCtx, cancel = context.WithCancel(testCtx)

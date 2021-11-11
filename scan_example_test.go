@@ -6,16 +6,26 @@ package pbpgx_test
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/muhlemmer/pbpgx"
 	gen "github.com/muhlemmer/pbpgx/example_gen"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var conn *pgx.Conn
+func ExampleScan() {
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
 
-func Scan_Example() {
-	rows, err := conn.Query(context.TODO(), "select id, tile, price from products;")
+	conn, err := pgx.Connect(ctx, "user=pbpgx_tester host=db port=5432 dbname=pbpgx_tester")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close(ctx)
+
+	rows, err := conn.Query(ctx, "select id, title, price from products;")
 	if err != nil {
 		panic(err)
 	}
@@ -26,4 +36,9 @@ func Scan_Example() {
 	if err != nil {
 		panic(err)
 	}
+
+	out, _ := protojson.Marshal(result)
+	fmt.Println(string(out))
+
+	// Output: {"products":[{"id":"1","title":"one","price":9.99},{"id":"2","title":"two","price":10.45},{"id":"3","title":"three"},{"id":"4","title":"four","price":100},{"id":"5","title":"five","price":0.9}]}
 }
