@@ -20,18 +20,6 @@ type Executor interface {
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 }
 
-func Exec(ctx context.Context, x Executor, sql string, args ...interface{}) (pgconn.CommandTag, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	ct, err := x.Exec(ctx, sql, args...)
-	if err != nil {
-		return ct, fmt.Errorf("pbpgx.Exec: %w", err)
-	}
-
-	return ct, nil
-}
-
 // Query runs the passed sql with args on the Executor x,
 // and returns a slice of type M containing the results.
 // See Scan for more details.

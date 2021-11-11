@@ -6,60 +6,11 @@ package pbpgx
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
-	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"google.golang.org/protobuf/proto"
 )
-
-func TestExec(t *testing.T) {
-	type args struct {
-		ctx  context.Context
-		sql  string
-		args []interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    pgconn.CommandTag
-		wantErr bool
-	}{
-		{
-			"CTX error",
-			args{
-				errCtx,
-				"insert into simple_rw (id, title) values ($1, $2);",
-				[]interface{}{1, "foobar"},
-			},
-			nil,
-			true,
-		},
-		{
-			"Success",
-			args{
-				testCtx,
-				"insert into simple_rw (id, title) values ($1, $2);",
-				[]interface{}{1, "foobar"},
-			},
-			pgconn.CommandTag("INSERT 0 1"),
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := Exec(tt.args.ctx, connPool, tt.args.sql, tt.args.args...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Exec() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Exec() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestQuery(t *testing.T) {
 	type args struct {
