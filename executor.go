@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Executor is a common interface for database connection types.
+// For example pgxpool.Pool, pgx[pool].Conn and pgx[pool].Tx all satisfy this interface.
 type Executor interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
@@ -30,6 +32,9 @@ func Exec(ctx context.Context, x Executor, sql string, args ...interface{}) (pgc
 	return ct, nil
 }
 
+// Query runs the passed sql with args on the Executor x,
+// and returns a slice of type M containing the results.
+// See Scan for more details.
 func Query[M proto.Message](ctx context.Context, x Executor, sql string, args ...interface{}) ([]M, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
