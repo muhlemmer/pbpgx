@@ -1,0 +1,40 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup PostgreSQL
+      uses: Harmon758/postgresql-action@v1.0.0
+      with:
+        postgresql version: 14
+        postgresql db: pbpgx_tester
+        postgresql user: pbpgx_tester
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        stable: false
+        go-version: master
+
+    - name: Download mods
+      run: go mod download
+
+    - name: Test
+      run: go test -v -race -coverprofile=bppgx.cov -covermode=atomic ./
+      env:
+        DATABASE_DSN: "user=pbpgx_tester host=/var/run/postgresql port=5432 dbname=pbpgx_tester sslmode=disable pool_max_conns=10"
+
+    - name: Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        files: ./bppgx.cov
