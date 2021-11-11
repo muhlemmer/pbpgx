@@ -1,5 +1,6 @@
 [![Go](https://github.com/muhlemmer/pbpgx/actions/workflows/go.yml/badge.svg)](https://github.com/muhlemmer/pbpgx/actions/workflows/go.yml)
-
+[![codecov](https://codecov.io/gh/muhlemmer/pbpgx/branch/main/graph/badge.svg?token=NS16O82CC1)](https://codecov.io/gh/muhlemmer/pbpgx)
+[![Go Report Card](https://goreportcard.com/badge/github.com/muhlemmer/pbpgx)](https://goreportcard.com/report/github.com/muhlemmer/pbpgx)
 
 # PBPGX
 
