@@ -40,5 +40,5 @@ func ExampleScan() {
 	out, _ := protojson.Marshal(result)
 	fmt.Println(string(out))
 
-	// Output: {"products":[{"id":"1","title":"one","price":9.99},{"id":"2","title":"two","price":10.45},{"id":"3","title":"three"},{"id":"4","title":"four","price":100},{"id":"5","title":"five","price":0.9}]}
+	// {"products":[{"id":"1","title":"one","price":9.99},{"id":"2","title":"two","price":10.45},{"id":"3","title":"three"},{"id":"4","title":"four","price":100},{"id":"5","title":"five","price":0.9}]}
 }

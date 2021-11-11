@@ -85,3 +85,78 @@ func TestQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryRow(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		sql  string
+		args []interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *support.Simple
+		wantErr bool
+	}{
+		{
+			"CTX error",
+			args{
+				errCtx,
+				"select * from simple_ro;",
+				nil,
+			},
+			nil,
+			true,
+		},
+		{
+			"No rows",
+			args{
+				testCtx,
+				"select title from simple_ro where id = $1;",
+				[]interface{}{99},
+			},
+			nil,
+			true,
+		},
+		{
+			"Simple query",
+			args{
+				testCtx,
+				"select * from simple_ro;",
+				nil,
+			},
+			&support.Simple{Id: 1, Title: "one"},
+			false,
+		},
+		{
+			"Query with argument",
+			args{
+				testCtx,
+				"select title from simple_ro where id = $1;",
+				[]interface{}{2},
+			},
+			&support.Simple{Title: "two"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := QueryRow[*support.Simple](tt.args.ctx, connPool, tt.args.sql, tt.args.args...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !proto.Equal(got, tt.want) {
+				t.Errorf("Query() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	t.Run("Unsupported error", func(t *testing.T) {
+		_, err := QueryRow[*support.Unsupported](testCtx, connPool, "select true as bool;")
+		if err == nil {
+			t.Error("Query() error is nil, want error")
+		}
+	})
+}

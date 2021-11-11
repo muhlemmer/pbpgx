@@ -36,5 +36,5 @@ func ExampleQuery() {
 	out, _ := protojson.Marshal(result)
 	fmt.Println(string(out))
 
-	// Output: {"products":[{"title":"two","price":10.45},{"title":"four","price":100},{"title":"five","price":0.9}]}
+	// {"products":[{"title":"two","price":10.45},{"title":"four","price":100},{"title":"five","price":0.9}]}
 }

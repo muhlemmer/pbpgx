@@ -33,5 +33,34 @@ func Query[M proto.Message](ctx context.Context, x Executor, sql string, args ..
 	}
 	defer rows.Close()
 
-	return Scan[M](rows)
+	return scanLimit[M](0, rows)
+}
+
+// QueryRow runs the passed sql with args on the Executor x,
+// and returns one row Scanned into a message of type M.
+// See Scan for more details.
+//
+// In case of no rows, pgx.ErrNoRows is returned.
+func QueryRow[M proto.Message](ctx context.Context, x Executor, sql string, args ...interface{}) (M, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var m M
+
+	rows, err := x.Query(ctx, sql, args...)
+	if err != nil {
+		return m, fmt.Errorf("pbpgx.QueryRow: %w", err)
+	}
+	defer rows.Close()
+
+	results, err := scanLimit[M](1, rows)
+	if err != nil {
+		return m, err
+	}
+
+	if len(results) < 1 {
+		return m, pgx.ErrNoRows
+	}
+
+	return results[0], nil
 }

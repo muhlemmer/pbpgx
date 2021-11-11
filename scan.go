@@ -115,11 +115,7 @@ func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) []
 	return fields
 }
 
-// Scan returns a slice of proto messages of type M, filled with data from rows.
-// It matches field names from rows to field names of the proto message type M.
-// An error is returned if a column name in rows is not found in te message type's field names,
-// if a matched message field is of an unsupported type or any scan error reported by the pgx driver.
-func Scan[M proto.Message](rows pgx.Rows) (results []M, err error) {
+func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err error) {
 	var m M
 
 	defer func() {
@@ -131,7 +127,7 @@ func Scan[M proto.Message](rows pgx.Rows) (results []M, err error) {
 	msg := m.ProtoReflect()
 	dest := destinations(msg.Descriptor().Fields(), rows.FieldDescriptions())
 
-	for rows.Next() {
+	for i := 0; rows.Next() && (limit == 0 || i < limit); i++ {
 		msg = msg.New()
 
 		if err := rows.Scan(dest...); err != nil {
@@ -147,4 +143,12 @@ func Scan[M proto.Message](rows pgx.Rows) (results []M, err error) {
 	}
 
 	return results, nil
+}
+
+// Scan returns a slice of proto messages of type M, filled with data from rows.
+// It matches field names from rows to field names of the proto message type M.
+// An error is returned if a column name in rows is not found in te message type's field names,
+// if a matched message field is of an unsupported type or any scan error reported by the pgx driver.
+func Scan[M proto.Message](rows pgx.Rows) ([]M, error) {
+	return scanLimit[M](0, rows)
 }
