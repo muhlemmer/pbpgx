@@ -7,6 +7,7 @@ require (
 	github.com/jackc/pgproto3/v2 v2.1.1
 	github.com/jackc/pgtype v1.8.1
 	github.com/jackc/pgx/v4 v4.13.0
+	github.com/muhlemmer/stringx v0.0.0-20211118131336-d772921e8f56
 	google.golang.org/protobuf v1.27.1
 )
 

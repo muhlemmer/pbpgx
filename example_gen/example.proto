@@ -17,3 +17,15 @@ message Product {
 message ProductList {
     repeated Product products = 1;
 }
+
+enum ProductColumns {
+    ALL = 0;
+    id = 1;
+    title = 2;
+    price = 3;
+}
+
+message ProductQuery {
+    int64 id = 1;
+    repeated ProductColumns columns = 2;
+}

@@ -43,3 +43,14 @@ message Simple {
     int32 id = 1;
     string title = 2;
 }
+
+enum SimpleColumns {
+    ALL = 0;
+    id = 1;
+    title = 2;
+}
+
+message SimpleQuery {
+    int32 id = 1;
+    repeated SimpleColumns columns = 2;
+}
