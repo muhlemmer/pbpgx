@@ -12,14 +12,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const selectColumnSep = ", "
+const (
+	columnSep = ", "
+	schemaSep = "."
+)
 
 func colSlice[ColType fmt.Stringer](columns []ColType) ([]string, int) {
 	if len(columns) == 0 {
 		return nil, 1
 	}
 
-	n := len(selectColumnSep) * (len(columns) - 1)
+	n := len(columnSep) * (len(columns) - 1)
 
 	out := make([]string, len(columns))
 	for i, s := range columns {
@@ -39,7 +42,6 @@ func readOneQuery[ColDesc fmt.Stringer](schema, table string, columns []ColDesc)
 	const (
 		sselect    = "SELECT "
 		from       = " FROM "
-		schemaSep  = "."
 		whereLimit = " WHERE \"id\" = $1 LIMIT 1;"
 	)
 
@@ -56,7 +58,7 @@ func readOneQuery[ColDesc fmt.Stringer](schema, table string, columns []ColDesc)
 	b.WriteString(sselect)
 
 	if len(cols) > 0 {
-		b.WriteEnclosedElements(cols, selectColumnSep, stringx.DoubleQuotes)
+		b.WriteEnclosedElements(cols, columnSep, stringx.DoubleQuotes)
 	} else {
 		b.WriteByte('*')
 	}
