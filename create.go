@@ -9,74 +9,17 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jackc/pgtype"
 	"github.com/muhlemmer/stringx"
 	"google.golang.org/protobuf/proto"
-	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func newArg(msg pr.Message, fd pr.FieldDescriptor) (v pgtype.Value) {
-	if fd.Cardinality() == pr.Repeated {
-		panic(fmt.Errorf("unsupported type \"%s %s\" for args", pr.Repeated, fd.Kind()))
-	}
-
-	switch fd.Kind() {
-	case pr.BoolKind:
-		v = new(pgtype.Bool)
-
-	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
-		v = new(pgtype.Int4)
-
-	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
-		v = new(pgtype.Int8)
-
-	case pr.FloatKind:
-		v = new(pgtype.Float4)
-
-	case pr.DoubleKind:
-		v = new(pgtype.Float8)
-
-	case pr.StringKind:
-		v = new(pgtype.Text)
-
-	case pr.BytesKind:
-		v = new(pgtype.Bytea)
-
-	case pr.Uint32Kind, pr.Fixed32Kind:
-		v = new(pgtype.Int4)
-
-	case pr.Uint64Kind, pr.Fixed64Kind:
-		v = new(pgtype.Int8)
-
-	default:
-		panic(fmt.Errorf("unsupported type %q for args", fd.Kind()))
-	}
-
-	v.Set(msg.Get(fd).Interface())
-
-	return v
-}
-
-// INSERT INTO "public"."simple" ("id", "title") VALUES ($1, $2) RETURNING "id";
-func createOneQuery(schema, table string, req proto.Message) (query string, n int, args []interface{}) {
-	const (
-		insertInto = "INSERT INTO "
-		values     = " VALUES "
-		returning  = " RETURNING \"id\";"
-	)
-
-	if schema == "" {
-		schema = DefaultSchema
-	}
-
-	n += len(insertInto) + len(schema) + len(table) + len(schemaSep) + 2*len(stringx.DoubleQuotes) + len(values) + len(returning)
-
+func readFields(req proto.Message) (n int, cols []string, posArgs []string, args []interface{}) {
 	msg := req.ProtoReflect()
 	fields := msg.Descriptor().Fields()
 	l := fields.Len()
 
-	cols := make([]string, 0, l)
-	posArgs := make([]string, 0, l)
+	cols = make([]string, 0, l)
+	posArgs = make([]string, 0, l)
 	args = make([]interface{}, 0, l)
 
 	var pos int
@@ -93,12 +36,31 @@ func createOneQuery(schema, table string, req proto.Message) (query string, n in
 			posArgs = append(posArgs, pa)
 			n += len(pa)
 
-			args = append(args, newArg(msg, fd))
-		}
+			arg := newPgKind(fd)
+			arg.Set(msg.Get(fd).Interface())
 
+			args = append(args, arg)
+		}
 	}
 
-	n += len(columnSep)*(len(cols)-1)*2 + 5
+	return n, cols, posArgs, args
+}
+
+// INSERT INTO "public"."simple_rw" ("id", "title") VALUES ($1, $2) RETURNING "id";
+func createOneQuery(schema, table string, req proto.Message) (n int, query string, args []interface{}) {
+	const (
+		insertInto = "INSERT INTO "
+		values     = " VALUES "
+		returning  = " RETURNING \"id\";"
+	)
+
+	n, cols, posArgs, args := readFields(req)
+
+	if schema == "" {
+		schema = DefaultSchema
+	}
+
+	n += len(insertInto) + len(schema) + len(table) + len(schemaSep) + 2*len(stringx.DoubleQuotes) + len(values) + len(returning) + len(columnSep)*(len(cols)-1)*2 + 5
 
 	var b stringx.Builder
 	b.Grow(n)
@@ -113,7 +75,7 @@ func createOneQuery(schema, table string, req proto.Message) (query string, n in
 	b.WriteEnclosedJoin(posArgs, columnSep, stringx.RoundBrackets)
 	b.WriteString(returning)
 
-	return b.String(), n, args
+	return n, b.String(), args
 }
 
 // CreateOne record, with the contents of req.
@@ -128,7 +90,7 @@ func CreateOne[M proto.Message](ctx context.Context, x Executor, schema, table s
 		}
 	}()
 
-	query, _, args := createOneQuery(schema, table, req)
+	_, query, args := createOneQuery(schema, table, req)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

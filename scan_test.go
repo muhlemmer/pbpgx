@@ -7,7 +7,6 @@ package pbpgx
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/jackc/pgconn"
@@ -16,53 +15,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"google.golang.org/protobuf/proto"
-	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
-
-func Test_convertIntValueFunc(t *testing.T) {
-	f := convertIntValueFunc[uint32](pr.ValueOfInt32)
-	var u uint32 = 222
-	v := f(u)
-
-	if got := v.Interface().(int32); got != 222 {
-		t.Errorf("convertIntValueFunc.f() got: %v, want 222", got)
-	}
-}
-
-func Test_destination_value(t *testing.T) {
-	type fields struct {
-		valueDecoder valueDecoder
-		valueFunc    func(interface{}) pr.Value
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   pr.Value
-	}{
-		{
-			"test",
-			fields{
-				valueDecoder: &pgtype.Float4{
-					Float:  1.1,
-					Status: pgtype.Present,
-				},
-				valueFunc: pr.ValueOf,
-			},
-			pr.ValueOfFloat32(1.1),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &destination{
-				valueDecoder: tt.fields.valueDecoder,
-				valueFunc:    tt.fields.valueFunc,
-			}
-			if got := d.value(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("destination.value() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 type testRows struct {
 	names []string

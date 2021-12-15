@@ -118,7 +118,7 @@ func Test_createOneQuery(t *testing.T) {
 			err := func() (err error) {
 				defer func() { err, _ = recover().(error) }()
 
-				gotQuery, gotN, gotArgs := createOneQuery(tt.args.schema, tt.args.table, tt.args.req)
+				gotN, gotQuery, gotArgs := createOneQuery(tt.args.schema, tt.args.table, tt.args.req)
 				if gotQuery != tt.wantQuery {
 					t.Errorf("createOneQuery() gotQuery =\n%v\nwant\n%v", gotQuery, tt.wantQuery)
 				}
@@ -130,7 +130,9 @@ func Test_createOneQuery(t *testing.T) {
 				}
 
 				for i, want := range tt.wantArgs {
-					if !reflect.DeepEqual(gotArgs[i], want) {
+					got := gotArgs[i].(*pgKind).ValueTranscoder
+
+					if !reflect.DeepEqual(got, want) {
 						t.Errorf("createOneQuery() gotArgs[%d] = %v, want %v", i, gotArgs[i], want)
 					}
 				}
