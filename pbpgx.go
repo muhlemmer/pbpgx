@@ -1,6 +1,21 @@
-// Copyright (c) 2021, Tim Möhlmann. All rights reserved.
-// Use of this source code is governed by a License that can be found in the LICENSE file.
-// SPDX-License-Identifier: BSD-3-Clause
+/*
+SPDX-License-Identifier: AGPL-3.0-only
+
+Copyright (C) 2021, Tim Möhlmann
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // Package pbpgx provides a toolkit for easier Protocol Buffers interaction with PostgreSQL databases.
 package pbpgx
