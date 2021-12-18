@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package pbpgx_test
+package crud_test
 
 import (
 	"context"
@@ -25,12 +25,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/muhlemmer/pbpgx"
+	"github.com/muhlemmer/pbpgx/crud"
 	gen "github.com/muhlemmer/pbpgx/example_gen"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func ExampleReadOne() {
+func ExampleCreateReturnOne() {
+	tab := crud.NewTable("public", "products", nil)
+
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
@@ -40,12 +42,14 @@ func ExampleReadOne() {
 	}
 	defer conn.Close(ctx)
 
-	req := &gen.ProductQuery{
-		Id:      2,
-		Columns: []gen.ProductColumns{gen.ProductColumns_title, gen.ProductColumns_price},
+	prod := &gen.Product{
+		Title: "Great deal!",
+		Price: 9.99,
 	}
 
-	result, err := pbpgx.ReadOne[int64, gen.ProductColumns, *gen.Product](ctx, conn, "", "products", req)
+	result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, prod,
+		[]gen.ProductColumns_Names{gen.ProductColumns_id, gen.ProductColumns_title, gen.ProductColumns_price},
+	)
 	if err != nil {
 		panic(err)
 	}

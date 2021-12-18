@@ -33,14 +33,15 @@ message ProductList {
     repeated Product products = 1;
 }
 
-enum ProductColumns {
-    ALL = 0;
-    id = 1;
-    title = 2;
-    price = 3;
+message ProductColumns{
+    enum Names {
+        id = 0;
+        title = 1;
+        price = 2;
+    }
 }
 
 message ProductQuery {
     int64 id = 1;
-    repeated ProductColumns columns = 2;
+    repeated ProductColumns.Names columns = 2;
 }

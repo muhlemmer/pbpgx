@@ -57,12 +57,13 @@ message Unsupported {
 message Simple {
     int32 id = 1;
     string title = 2;
+    string data = 3;
 }
 
 enum SimpleColumns {
-    ALL = 0;
-    id = 1;
-    title = 2;
+    id = 0;
+    title = 1;
+    data = 2;
 }
 
 message SimpleQuery {

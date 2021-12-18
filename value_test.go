@@ -37,7 +37,7 @@ func Test_convertIntValueFunc(t *testing.T) {
 	}
 }
 
-func Test_pgKind_value(t *testing.T) {
+func Test_Value_value(t *testing.T) {
 	type fields struct {
 		ValueTranscoder pgtype.ValueTranscoder
 		valueFunc       func(interface{}) pr.Value
@@ -61,7 +61,7 @@ func Test_pgKind_value(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := &pgKind{
+			d := &Value{
 				ValueTranscoder: tt.fields.ValueTranscoder,
 				valueFunc:       tt.fields.valueFunc,
 			}

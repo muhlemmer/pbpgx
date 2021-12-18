@@ -17,15 +17,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package pbpgx
-
-import (
-	"os"
-	"testing"
-
-	"github.com/muhlemmer/pbpgx/internal/testlib"
-)
-
-func TestMain(m *testing.M) {
-	os.Exit(testlib.TestMain(m))
-}
+// Package crud provides Create Read Update and Delete functionality on top of pbpgx.
+// It is capable of effeciently building queries based on incomming protocol buffer messages,
+// and returning results as protocol buffer messages, using protoreflect and generics.
+package crud

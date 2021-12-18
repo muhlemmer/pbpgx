@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/proto"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
@@ -37,7 +38,7 @@ func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) []
 			panic(fmt.Errorf("unknown field %s", f.Name))
 		}
 
-		fields[i] = newPgKind(pfd)
+		fields[i] = NewValue(pfd, pgtype.Undefined)
 	}
 
 	return fields
@@ -63,7 +64,7 @@ func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err erro
 		}
 
 		for _, v := range dest {
-			d := v.(*pgKind)
+			d := v.(*Value)
 			msg.Set(d.fieldDesc, d.value())
 		}
 

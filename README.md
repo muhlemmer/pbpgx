@@ -17,17 +17,16 @@ will support Go version 1.18 upward.
 
 When not using an ORM a typical development workflow I often experience is:
 
-1. Query definition: Either complete definitions, templates with partials or snipets in a custom query builder.
-2. Query preparation: Load definitions from files, or execute templates or the query builder based on the request to the API.
-3. [Query execution](#query-execution): Send the prepared query to the database, with metods such as `conn.Exec()` or `conn.Query()`.
-4. [Row scanning](#row-scanning): In case of the read action `conn.Query()`, the returned data must be scanned with `rows.Next()` and `rows.Scan()`,
+1. Query preparation: Load definitions from files, execute templates or [build queries](#query-building-for-crud-operations) based on the request to the API.
+2. [Query execution](#query-execution): Send the prepared query to the database, with metods such as `conn.Exec()` or `conn.Query()`.
+3. [Row scanning](#row-scanning): In case of the read action `conn.Query()`, the returned data must be scanned with `rows.Next()` and `rows.Scan()`,
     checking for errors on each iteration.
     If the result columns are variable based on the request data, then the scan targets must also dynamically be prepared during query preparation.
 
 Pbpgx can greatly reduce this effort for most boilerplate API tasks. This package can be used from the bottom-up.
 For instance, if your project already has a way of preparing and executing queries, this package can still be used for [scanning](#row-scanning) Rows into protocol buffer messages.
 However, for most [CRUD](https://en.wikipedia.org/wiki/CRUD) actions, this package provides a way to build and execute queries, returning the results in the required type in a single call.
-It aims to minimize data transformation by the caller, by using Protocol Buffer messages as arguments and return types.
+It aims to minimize data transformation by the caller, by using Protocol Buffer messages as argument and return types.
 
 ### Row Scanning
 
@@ -79,6 +78,76 @@ if err != nil {
     panic(err)
 }
 ```
+
+### Query building for CRUD operations
+
+The `github.com/muhlemmer/pbpgx/crud` sub-package provides query building, execution and scanning for common CRUD operations. (Create, Read, Update and Delete).
+This allows to easily integrate your database models with protocol buffers and derived RPC implementations, for all basic operations.
+Argument and return types are typically of `proto.Message`, where applicable, again eliminating the need of adaptor code.
+Also the use of generic type arguments and `protoreflect` ensures a maintainable, consice, code base.
+Re-used buffers and stored alloaction lenghts cut down on the amount of allocations required during query building, thus making the query builder very performant:
+
+```
+Benchmark_insertQuery-16    	 1944303	      1079 ns/op	     208 B/op	       3 allocs/op
+Benchmark_selectQuery-16    	 2034650	       671.1 ns/op	     128 B/op	       2 allocs/op
+Benchmark_updateQuery-16    	 1217715	      1316 ns/op	     224 B/op	       3 allocs/op
+Benchmark_deleteQuery-16    	 2811507	       660.9 ns/op	     128 B/op	       2 allocs/op
+```
+
+Usage is simple. First we extend on our [protocal buffer definitions](example_gen/example.proto) from above:
+
+```
+message ProductColumns{
+    enum Names {
+        id = 0;
+        title = 1;
+        price = 2;
+    }
+}
+
+message ProductQuery {
+    int64 id = 1;
+    repeated ProductColumns.Names columns = 2;
+}
+```
+
+In our implementation code we reate a `Table` once, which takes care of query builder re-use:
+
+```
+tab := crud.NewTable("public", "products", nil)
+```
+
+For reading a single entry, the request argument must implement the `Selector` interface constraint, carying the unique ID and Columns to be `SELECT`ed.
+The generated `ProductQuery` implements `Selector`.
+
+```
+query := &gen.ProductQuery{
+    Id:      2,
+    Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
+}
+```
+
+Using the above incoming query, we just need to make one call to read a single message of the required return type `Product`:
+
+```
+result, err := crud.ReadOne[*gen.Product, int64, gen.ProductColumns_Names](ctx, conn, tab, query)
+if err != nil {
+    panic(err)
+}
+```
+
+Or, create a new entry (`INSERT`), returing specific fields after the database assigns the primary ID:
+
+```
+result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, prod,
+    []gen.ProductColumns_Names{gen.ProductColumns_id, gen.ProductColumns_title, gen.ProductColumns_price},
+)
+if err != nil {
+    panic(err)
+}
+```
+
+Likewise, there are the `CreateOne`, `DeleteOne` and `UpdateOne` functions (only write) with `Return` variants for returning the affected record (write and read).
 
 ## License
 

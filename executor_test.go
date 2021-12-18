@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/muhlemmer/pbpgx/internal/support"
+	"github.com/muhlemmer/pbpgx/internal/testlib"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,7 +43,7 @@ func TestQuery(t *testing.T) {
 		{
 			"CTX error",
 			args{
-				errCtx,
+				testlib.ECTX,
 				"select * from simple_ro;",
 				nil,
 			},
@@ -52,23 +53,23 @@ func TestQuery(t *testing.T) {
 		{
 			"Simple query",
 			args{
-				testCtx,
+				testlib.CTX,
 				"select * from simple_ro;",
 				nil,
 			},
 			[]*support.Simple{
-				{Id: 1, Title: "one"},
+				{Id: 1, Title: "one", Data: "foo bar"},
 				{Id: 2, Title: "two"},
-				{Id: 3},
-				{Id: 4, Title: "four"},
-				{Id: 5, Title: "five"},
+				{Id: 3, Data: "golden triangle"},
+				{Id: 4, Title: "four", Data: "hello world"},
+				{Id: 5, Title: "five", Data: "five is a four letter word"},
 			},
 			false,
 		},
 		{
 			"Query with arguments",
 			args{
-				testCtx,
+				testlib.CTX,
 				"select title from simple_ro where id in ($1, $2, $3);",
 				[]interface{}{2, 3, 4},
 			},
@@ -82,7 +83,7 @@ func TestQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Query[*support.Simple](tt.args.ctx, connPool, tt.args.sql, tt.args.args...)
+			got, err := Query[*support.Simple](tt.args.ctx, testlib.ConnPool, tt.args.sql, tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -116,7 +117,7 @@ func TestQueryRow(t *testing.T) {
 		{
 			"CTX error",
 			args{
-				errCtx,
+				testlib.ECTX,
 				"select * from simple_ro;",
 				nil,
 			},
@@ -126,7 +127,7 @@ func TestQueryRow(t *testing.T) {
 		{
 			"No rows",
 			args{
-				testCtx,
+				testlib.CTX,
 				"select title from simple_ro where id = $1;",
 				[]interface{}{99},
 			},
@@ -136,17 +137,17 @@ func TestQueryRow(t *testing.T) {
 		{
 			"Simple query",
 			args{
-				testCtx,
+				testlib.CTX,
 				"select * from simple_ro;",
 				nil,
 			},
-			&support.Simple{Id: 1, Title: "one"},
+			&support.Simple{Id: 1, Title: "one", Data: "foo bar"},
 			false,
 		},
 		{
 			"Query with argument",
 			args{
-				testCtx,
+				testlib.CTX,
 				"select title from simple_ro where id = $1;",
 				[]interface{}{2},
 			},
@@ -156,7 +157,7 @@ func TestQueryRow(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := QueryRow[*support.Simple](tt.args.ctx, connPool, tt.args.sql, tt.args.args...)
+			got, err := QueryRow[*support.Simple](tt.args.ctx, testlib.ConnPool, tt.args.sql, tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -169,7 +170,7 @@ func TestQueryRow(t *testing.T) {
 	}
 
 	t.Run("Unsupported error", func(t *testing.T) {
-		_, err := QueryRow[*support.Unsupported](testCtx, connPool, "select true as bool;")
+		_, err := QueryRow[*support.Unsupported](testlib.CTX, testlib.ConnPool, "select true as bool;")
 		if err == nil {
 			t.Error("Query() error is nil, want error")
 		}

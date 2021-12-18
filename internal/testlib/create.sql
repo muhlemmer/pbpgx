@@ -1,18 +1,20 @@
 create table simple_ro (
     id integer primary key not null,
-    title text null
+    title text null,
+    data text null
 );
 
-insert into simple_ro (id, title) values 
-    (1, 'one'),
-    (2, 'two'),
-    (3, null),
-    (4, 'four'),
-    (5, 'five');
+insert into simple_ro (id, title, data) values 
+    (1, 'one', 'foo bar'),
+    (2, 'two', null),
+    (3, null, 'golden triangle'),
+    (4, 'four', 'hello world'),
+    (5, 'five', 'five is a four letter word');
 
 create table simple_rw (
     id integer primary key not null,
-    title text null
+    title text null,
+    data text null
 );
 
 

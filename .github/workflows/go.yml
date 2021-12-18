@@ -37,9 +37,9 @@ jobs:
       run: gotip mod download
 
     - name: Test
-      run: gotip test -v -race -coverprofile=bppgx.cov -covermode=atomic ./
+      run: gotip test -v -race -coverprofile=pbpgx.cov -covermode=atomic ./...
 
     - name: Codecov
       uses: codecov/codecov-action@v2
       with:
-        files: ./bppgx.cov
+        files: ./pbpgx.cov

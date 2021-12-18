@@ -43,24 +43,18 @@ func assertValueFunc[T any](f func(T) pr.Value) func(interface{}) pr.Value {
 	}
 }
 
-type valueDecoder interface {
-	pgtype.Value
-	pgtype.BinaryDecoder
-	pgtype.TextDecoder
-}
-
-type pgKind struct {
+type Value struct {
 	pgtype.ValueTranscoder
 	fieldDesc pr.FieldDescriptor
 	valueFunc func(interface{}) pr.Value
 }
 
-func (d *pgKind) value() pr.Value {
+func (d *Value) value() pr.Value {
 	return d.valueFunc(d.Get())
 }
 
-func newPgKind(fd pr.FieldDescriptor) *pgKind {
-	d := &pgKind{
+func NewValue(fd pr.FieldDescriptor, status pgtype.Status) *Value {
+	d := &Value{
 		fieldDesc: fd,
 	}
 
@@ -70,39 +64,39 @@ func newPgKind(fd pr.FieldDescriptor) *pgKind {
 
 	switch fd.Kind() {
 	case pr.BoolKind:
-		d.ValueTranscoder = new(pgtype.Bool)
+		d.ValueTranscoder = &pgtype.Bool{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfBool)
 
 	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
-		d.ValueTranscoder = new(pgtype.Int4)
+		d.ValueTranscoder = &pgtype.Int4{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfInt32)
 
 	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
-		d.ValueTranscoder = new(pgtype.Int8)
+		d.ValueTranscoder = &pgtype.Int8{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfInt64)
 
 	case pr.FloatKind:
-		d.ValueTranscoder = new(pgtype.Float4)
+		d.ValueTranscoder = &pgtype.Float4{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfFloat32)
 
 	case pr.DoubleKind:
-		d.ValueTranscoder = new(pgtype.Float8)
+		d.ValueTranscoder = &pgtype.Float8{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfFloat64)
 
 	case pr.StringKind:
-		d.ValueTranscoder = new(pgtype.Text)
+		d.ValueTranscoder = &pgtype.Text{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfString)
 
 	case pr.BytesKind:
-		d.ValueTranscoder = new(pgtype.Bytea)
+		d.ValueTranscoder = &pgtype.Bytea{Status: status}
 		d.valueFunc = assertValueFunc(pr.ValueOfBytes)
 
 	case pr.Uint32Kind, pr.Fixed32Kind:
-		d.ValueTranscoder = new(pgtype.Int4)
+		d.ValueTranscoder = &pgtype.Int4{Status: status}
 		d.valueFunc = convertIntValueFunc[int32](pr.ValueOfUint32)
 
 	case pr.Uint64Kind, pr.Fixed64Kind:
-		d.ValueTranscoder = new(pgtype.Int8)
+		d.ValueTranscoder = &pgtype.Int8{Status: status}
 		d.valueFunc = convertIntValueFunc[int64](pr.ValueOfUint64)
 
 	default:
