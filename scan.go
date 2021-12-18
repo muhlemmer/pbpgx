@@ -47,12 +47,6 @@ func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) []
 func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err error) {
 	var m M
 
-	defer func() {
-		if err = checkNotRuntimeErr(recover()); err != nil {
-			err = fmt.Errorf("pbpgx.Scan into proto.Message %T: %w", m, err)
-		}
-	}()
-
 	msg := m.ProtoReflect()
 	dest := destinations(msg.Descriptor().Fields(), rows.FieldDescriptions())
 
@@ -60,7 +54,7 @@ func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err erro
 		msg = msg.New()
 
 		if err := rows.Scan(dest...); err != nil {
-			panic(err)
+			return nil, fmt.Errorf("pbpgx.Scan into proto.Message %T: %w", m, err)
 		}
 
 		for _, v := range dest {
