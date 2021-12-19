@@ -37,7 +37,11 @@ func UpdateOne[ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Execut
 	defer q.release()
 	go tab.bufLens.updateOne.setHigher(q.Len())
 
-	args := append(q.parseArgs(data, 1), id)
+	args, err := q.parseArgs(data, 1)
+	if err != nil {
+		return nil, fmt.Errorf("crud.UpdateOne: %w", err)
+	}
+	args = append(args, id)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -51,11 +55,16 @@ func UpdateOne[ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Execut
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
 // The returned message will have the fields set as returned by selector.GetColumns().
-func UpdateReturnOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, selector Selector[ID, ColDesc], data proto.Message) (M, error) {
+func UpdateReturnOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, selector Selector[ID, ColDesc], data proto.Message) (msg M, err error) {
 	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), selector.GetColumns(), true)
 	defer q.release()
 	go tab.bufLens.updateOne.setHigher(q.Len())
 
-	args := append(q.parseArgs(data, 1), selector.GetId())
+	args, err := q.parseArgs(data, 1)
+	if err != nil {
+		return msg, fmt.Errorf("crud.UpdateOne: %w", err)
+	}
+	args = append(args, selector.GetId())
+
 	return pbpgx.QueryRow[M](ctx, x, q.String(), args...)
 }

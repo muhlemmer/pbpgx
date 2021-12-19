@@ -40,7 +40,12 @@ func CreateOne(ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Mess
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	return x.Exec(ctx, q.String(), q.parseArgs(req, 0)...)
+	args, err := q.parseArgs(req, 0)
+	if err != nil {
+		return nil, fmt.Errorf("crud.CreateOne: %w", err)
+	}
+
+	return x.Exec(ctx, q.String(), args...)
 }
 
 // CreateReturnOne creates one record in a Table, with the contents of the req Message
@@ -49,10 +54,15 @@ func CreateOne(ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Mess
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
 // The returned message will have the fields set as identified by retCols.
-func CreateReturnOne[M proto.Message, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message, retCols []ColDesc) (M, error) {
+func CreateReturnOne[M proto.Message, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message, retCols []ColDesc) (m M, err error) {
 	q := insertQuery(tab, req, tab.bufLens.createOne.get(), retCols, true)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), q.parseArgs(req, 0)...)
+	args, err := q.parseArgs(req, 0)
+	if err != nil {
+		return m, fmt.Errorf("crud.CreateOne: %w", err)
+	}
+
+	return pbpgx.QueryRow[M](ctx, x, q.String(), args...)
 }

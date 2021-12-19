@@ -38,6 +38,7 @@ func TestCreateReturnOne(t *testing.T) {
 		req     proto.Message
 		retCols []support.SimpleColumns
 		want    proto.Message
+		wantErr bool
 	}{
 		{
 			"all fields",
@@ -56,14 +57,27 @@ func TestCreateReturnOne(t *testing.T) {
 				Title: "foo bar",
 				Data:  "Hello World!",
 			},
+			false,
+		},
+		{
+			"unsupported error",
+			&support.Unsupported{Bl: []bool{true, false}},
+			[]support.SimpleColumns{
+				support.SimpleColumns_id,
+				support.SimpleColumns_title,
+				support.SimpleColumns_data,
+			},
+			(*support.Simple)(nil),
+			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := CreateReturnOne[*support.Simple](testlib.CTX, testlib.ConnPool, tab, tt.req, tt.retCols)
-			if err != nil {
-				t.Fatal(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 			if !proto.Equal(got, tt.want) {
 				t.Errorf("CreateReturnOne() = %v, want %v", got, tt.want)
@@ -76,9 +90,10 @@ func TestCreateOne(t *testing.T) {
 	tab := NewTable("", "simple_rw", ColumnDefault{"id": Zero})
 
 	tests := []struct {
-		name string
-		req  *support.Simple
-		want *support.Simple
+		name    string
+		req     proto.Message
+		want    *support.Simple
+		wantErr bool
 	}{
 		{
 			"all fields",
@@ -92,6 +107,13 @@ func TestCreateOne(t *testing.T) {
 				Title: "foo bar",
 				Data:  "Hello World!",
 			},
+			false,
+		},
+		{
+			"unsupported error",
+			&support.Unsupported{Bl: []bool{true, false}},
+			nil,
+			true,
 		},
 	}
 
@@ -107,18 +129,22 @@ func TestCreateOne(t *testing.T) {
 			defer tx.Rollback(ctx)
 
 			_, err = CreateOne(testlib.CTX, testlib.ConnPool, tab, tt.req)
-			if err != nil {
-				t.Fatal(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 
-			got, err := pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_rw" where id = $1;`, tt.req.Id)
-			if err != nil {
-				t.Fatal(err)
+			if !tt.wantErr {
+				got, err := pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_rw" where id = $1;`, tt.req.(*support.Simple).Id)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !proto.Equal(got, tt.want) {
+					t.Errorf("CreateReturnOne() = %v, want %v", got, tt.want)
+				}
 			}
 
-			if !proto.Equal(got, tt.want) {
-				t.Errorf("CreateReturnOne() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }

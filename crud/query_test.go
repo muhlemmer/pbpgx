@@ -89,6 +89,7 @@ func Test_query_parseArgs(t *testing.T) {
 		fields   fields
 		req      proto.Message
 		wantArgs []interface{}
+		wantErr  bool
 	}{
 		{
 			"all empty, default",
@@ -101,6 +102,7 @@ func Test_query_parseArgs(t *testing.T) {
 				&pgtype.Text{Status: pgtype.Null},
 				&pgtype.Text{Status: pgtype.Null},
 			},
+			false,
 		},
 		{
 			"all empty, onEmpty map",
@@ -117,6 +119,7 @@ func Test_query_parseArgs(t *testing.T) {
 				&pgtype.Text{Status: pgtype.Present},
 				&pgtype.Text{Status: pgtype.Null},
 			},
+			false,
 		},
 		{
 			"with id, onEmpty map",
@@ -135,6 +138,7 @@ func Test_query_parseArgs(t *testing.T) {
 				&pgtype.Text{Status: pgtype.Present},
 				&pgtype.Text{Status: pgtype.Null},
 			},
+			false,
 		},
 		{
 			"all values, onEmpty map",
@@ -155,6 +159,18 @@ func Test_query_parseArgs(t *testing.T) {
 				&pgtype.Text{String: "Hello World!", Status: pgtype.Present},
 				&pgtype.Text{String: "foo bar", Status: pgtype.Present},
 			},
+			false,
+		},
+		{
+			"unsupported error",
+			fields{
+				fieldNames: []string{"bl"},
+			},
+			&support.Unsupported{
+				Bl: []bool{true, false},
+			},
+			nil,
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -165,7 +181,12 @@ func Test_query_parseArgs(t *testing.T) {
 					onEmpty: tt.fields.onEmpty,
 				},
 			}
-			gotArgs := q.parseArgs(tt.req, 0)
+			gotArgs, err := q.parseArgs(tt.req, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("query.parseArgs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
 			if len(gotArgs) != len(tt.wantArgs) {
 				t.Fatalf("query.parseArgs() len = %v, want %v", gotArgs, tt.wantArgs)
 			}

@@ -29,26 +29,34 @@ import (
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) []interface{} {
+func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) ([]interface{}, error) {
 	fields := make([]interface{}, len(pgfs))
 
 	for i, f := range pgfs {
 		pfd := pfds.ByName(pr.Name(string(f.Name)))
 		if pfd == nil {
-			panic(fmt.Errorf("unknown field %s", f.Name))
+			return nil, fmt.Errorf("unknown field %s", f.Name)
 		}
 
-		fields[i] = NewValue(pfd, pgtype.Undefined)
+		v, err := NewValue(pfd, pgtype.Undefined)
+		if err != nil {
+			return nil, err
+		}
+
+		fields[i] = v
 	}
 
-	return fields
+	return fields, nil
 }
 
 func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err error) {
 	var m M
 
 	msg := m.ProtoReflect()
-	dest := destinations(msg.Descriptor().Fields(), rows.FieldDescriptions())
+	dest, err := destinations(msg.Descriptor().Fields(), rows.FieldDescriptions())
+	if err != nil {
+		return nil, err
+	}
 
 	for i := 0; rows.Next() && (limit == 0 || i < limit); i++ {
 		msg = msg.New()

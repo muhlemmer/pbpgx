@@ -64,7 +64,7 @@ func (q *query) parseFields(req proto.Message, skipEmpty bool, exclude ...string
 	}
 }
 
-func (q *query) parseArgs(req proto.Message, extraCap int) (args []interface{}) {
+func (q *query) parseArgs(req proto.Message, extraCap int) (args []interface{}, err error) {
 	msg := req.ProtoReflect()
 	fields := msg.Descriptor().Fields()
 
@@ -73,7 +73,10 @@ func (q *query) parseArgs(req proto.Message, extraCap int) (args []interface{}) 
 	for _, name := range q.fieldNames {
 		fd := fields.ByName(pr.Name(name))
 
-		arg := pbpgx.NewValue(fd, q.tab.onEmpty[name].pgStatus())
+		arg, err := pbpgx.NewValue(fd, q.tab.onEmpty[name].pgStatus())
+		if err != nil {
+			return nil, fmt.Errorf("parseArgs: %w", err)
+		}
 
 		if msg.Has(fd) {
 			arg.Set(msg.Get(fd).Interface())
@@ -82,7 +85,7 @@ func (q *query) parseArgs(req proto.Message, extraCap int) (args []interface{}) 
 		args = append(args, arg)
 	}
 
-	return args
+	return args, nil
 }
 
 // writeIdentifier writes the full identifier of a table.

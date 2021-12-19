@@ -33,12 +33,11 @@ import (
 func TestUpdateOne(t *testing.T) {
 	tab := NewTable("", "simple_ro", ColumnDefault{"id": Zero})
 
-	type args struct {
-	}
 	tests := []struct {
-		name string
-		data proto.Message
-		want *support.Simple
+		name    string
+		data    proto.Message
+		want    *support.Simple
+		wantErr bool
 	}{
 		{
 			"update title",
@@ -48,6 +47,7 @@ func TestUpdateOne(t *testing.T) {
 				Title: "five-and-halve",
 				Data:  "five is a four letter word",
 			},
+			false,
 		},
 		{
 			"update title and data",
@@ -57,6 +57,13 @@ func TestUpdateOne(t *testing.T) {
 				Title: "five-and-halve",
 				Data:  "history",
 			},
+			false,
+		},
+		{
+			"unsupported",
+			&support.Unsupported{Bl: []bool{true, false}},
+			nil,
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -71,8 +78,13 @@ func TestUpdateOne(t *testing.T) {
 			defer tx.Rollback(ctx)
 
 			_, err = UpdateOne[int32, support.SimpleColumns](testlib.CTX, tx, tab, 5, tt.data)
-			if err != nil {
-				t.Fatal(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				return
 			}
 
 			got, err := pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_ro" where id = $1;`, 5)
@@ -95,9 +107,10 @@ func TestUpdateReturnOne(t *testing.T) {
 		data     proto.Message
 	}
 	tests := []struct {
-		name string
-		args args
-		want *support.Simple
+		name    string
+		args    args
+		want    *support.Simple
+		wantErr bool
 	}{
 		{
 			"update title",
@@ -117,6 +130,7 @@ func TestUpdateReturnOne(t *testing.T) {
 				Title: "five-and-halve",
 				Data:  "five is a four letter word",
 			},
+			false,
 		},
 		{
 			"update title and data",
@@ -136,6 +150,7 @@ func TestUpdateReturnOne(t *testing.T) {
 				Title: "five-and-halve",
 				Data:  "history",
 			},
+			false,
 		},
 		{
 			"update title, return ID",
@@ -151,6 +166,21 @@ func TestUpdateReturnOne(t *testing.T) {
 			&support.Simple{
 				Id: 5,
 			},
+			false,
+		},
+		{
+			"update title, return ID",
+			args{
+				&support.SimpleQuery{
+					Id: 5,
+					Columns: []support.SimpleColumns{
+						support.SimpleColumns_id,
+					},
+				},
+				&support.Unsupported{Bl: []bool{true, false}},
+			},
+			nil,
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -165,9 +195,11 @@ func TestUpdateReturnOne(t *testing.T) {
 			defer tx.Rollback(ctx)
 
 			got, err := UpdateReturnOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, tx, tab, tt.args.selector, tt.args.data)
-			if err != nil {
-				t.Fatal(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
+
 			if !proto.Equal(got, tt.want) {
 				t.Errorf("UpdateReturnOne() =\n%v\nwant\n%v", got, tt.want)
 			}

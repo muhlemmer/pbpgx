@@ -53,13 +53,13 @@ func (d *Value) value() pr.Value {
 	return d.valueFunc(d.Get())
 }
 
-func NewValue(fd pr.FieldDescriptor, status pgtype.Status) *Value {
+func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (*Value, error) {
 	d := &Value{
 		fieldDesc: fd,
 	}
 
 	if fd.Cardinality() == pr.Repeated {
-		panic(fmt.Errorf("unsupported type \"%s %s\" for scanning", pr.Repeated, fd.Kind()))
+		return nil, fmt.Errorf("unsupported type \"%s %s\" for scanning", pr.Repeated, fd.Kind())
 	}
 
 	switch fd.Kind() {
@@ -100,8 +100,8 @@ func NewValue(fd pr.FieldDescriptor, status pgtype.Status) *Value {
 		d.valueFunc = convertIntValueFunc[int64](pr.ValueOfUint64)
 
 	default:
-		panic(fmt.Errorf("unsupported type %q for scanning", fd.Kind()))
+		return nil, fmt.Errorf("unsupported type %q for scanning", fd.Kind())
 	}
 
-	return d
+	return d, nil
 }
