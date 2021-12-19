@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
+	"constraints"
 	"context"
 	"fmt"
 
@@ -51,9 +52,31 @@ type Selector[ID any, ColDesc fmt.Stringer] interface {
 // All column names in query.Columns must be present as field names in M.
 // See scan for more details.
 func ReadOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, query Selector[ID, ColDesc]) (M, error) {
-	q := selectQuery(tab, query.GetColumns(), tab.bufLens.read.n)
+	q := selectQuery(tab, query.GetColumns(), tab.bufLens.read.n, whereID, 1)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 
 	return pbpgx.QueryRow[M](ctx, x, q.String(), query.GetId())
+}
+
+func ReadAll[M proto.Message, I constraints.Integer, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, limit I, cols ...ColDesc) ([]M, error) {
+	q := selectQuery(tab, cols, tab.bufLens.read.n, nil, limit)
+	defer q.release()
+	go tab.bufLens.createOne.setHigher(q.Len())
+
+	return pbpgx.Query[M](ctx, x, q.String())
+}
+
+func ReadList[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, ids []ID, cols ...ColDesc) ([]M, error) {
+	q := selectQuery(tab, cols, tab.bufLens.read.n, whereIDInFunc(len(ids)), 0)
+	defer q.release()
+	go tab.bufLens.createOne.setHigher(q.Len())
+
+	args := make([]interface{}, len(ids))
+
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	return pbpgx.Query[M](ctx, x, q.String(), args...)
 }

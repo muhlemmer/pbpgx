@@ -28,34 +28,105 @@ import (
 )
 
 func TestReadOne(t *testing.T) {
-	tests := []struct {
-		name  string
-		query *support.SimpleQuery
-		want  *support.Simple
-	}{
+	query := &support.SimpleQuery{
+		Id: 5,
+	}
+
+	want := &support.Simple{
+		Id:    5,
+		Title: "five",
+		Data:  "five is a four letter word",
+	}
+
+	tab := NewTable("public", "simple_ro", nil)
+
+	got, err := ReadOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, testlib.ConnPool, tab, query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(got, want) {
+		t.Errorf("ReadOne() = %v, want %v", got, want)
+	}
+}
+
+func TestReadAll(t *testing.T) {
+	cols := []support.SimpleColumns{
+		support.SimpleColumns_title,
+		support.SimpleColumns_data,
+	}
+
+	want := []*support.Simple{
 		{
-			"nil columns",
-			&support.SimpleQuery{
-				Id: 5,
-			},
-			&support.Simple{
-				Id:    5,
-				Title: "five",
-				Data:  "five is a four letter word",
-			},
+			Title: "one",
+			Data:  "foo bar",
+		},
+		{
+			Title: "two",
+		},
+		{
+			Data: "golden triangle",
+		},
+		{
+			Title: "four",
+			Data:  "hello world",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tab := NewTable("public", "simple_ro", nil)
 
-			got, err := ReadOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, testlib.ConnPool, tab, tt.query)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !proto.Equal(got, tt.want) {
-				t.Errorf("ReadOne() = %v, want %v", got, tt.want)
-			}
-		})
+	tab := NewTable("public", "simple_ro", nil)
+
+	got, err := ReadAll[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 4, cols...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("ReadAll() =\n%v\nwant\n%v", got, want)
+	}
+
+	for i, w := range want {
+		if !proto.Equal(got[i], w) {
+			t.Fatalf("ReadAll() =\n%v\nwant\n%v", got[i], w)
+		}
+	}
+}
+
+func TestReadList(t *testing.T) {
+	ids := []int{1, 4, 5}
+
+	cols := []support.SimpleColumns{
+		support.SimpleColumns_title,
+		support.SimpleColumns_data,
+	}
+
+	want := []*support.Simple{
+		{
+			Title: "one",
+			Data:  "foo bar",
+		},
+		{
+			Title: "four",
+			Data:  "hello world",
+		},
+		{
+			Title: "five",
+			Data:  "five is a four letter word",
+		},
+	}
+
+	tab := NewTable("public", "simple_ro", nil)
+
+	got, err := ReadList[*support.Simple](testlib.CTX, testlib.ConnPool, tab, ids, cols...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("ReadAll() =\n%v\nwant\n%v", got, want)
+	}
+
+	for i, w := range want {
+		if !proto.Equal(got[i], w) {
+			t.Fatalf("ReadAll() =\n%v\nwant\n%v", got[i], w)
+		}
 	}
 }

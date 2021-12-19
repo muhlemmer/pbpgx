@@ -220,24 +220,24 @@ func TestQuery_writeIdentifier(t *testing.T) {
 
 func Test_query_writePosArgs(t *testing.T) {
 	tests := []struct {
-		name       string
-		start, end int
-		want       string
+		name string
+		n    int
+		want string
 	}{
 		{
 			"one arg",
-			1, 1,
+			1,
 			"$1",
 		},
 		{
 			"no arg",
-			1, 0,
+			0,
 			"",
 		},
 		{
 			"multi arg",
-			2, 4,
-			"$2, $3, $4",
+			4,
+			"$1, $2, $3, $4",
 		},
 	}
 
@@ -247,7 +247,7 @@ func Test_query_writePosArgs(t *testing.T) {
 				Builder: new(stringx.Builder),
 			}
 
-			q.writePosArgs(tt.start, tt.end)
+			q.writePosArgs(tt.n)
 
 			if got := q.String(); got != tt.want {
 				t.Errorf("query.writePosArgs() = %s want %s", got, tt.want)
@@ -402,30 +402,56 @@ func Benchmark_insertQuery(b *testing.B) {
 
 func Test_selectQuery(t *testing.T) {
 	tests := []struct {
-		name string
-		cols []support.SimpleColumns
-		want string
+		name  string
+		cols  []support.SimpleColumns
+		wf    whereFunc
+		limit int
+		want  string
 	}{
 		{
-			"nil columns",
+			"select one, nil columns",
 			nil,
+			whereID,
+			1,
 			`SELECT * FROM "public"."simple_rw" WHERE "id" = $1 LIMIT 1;`,
 		},
 		{
-			"with columns",
+			"select one, with columns",
 			[]support.SimpleColumns{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
 			},
+			whereID,
+			1,
 			`SELECT "title", "data" FROM "public"."simple_rw" WHERE "id" = $1 LIMIT 1;`,
+		},
+		{
+			"select all, with columns",
+			[]support.SimpleColumns{
+				support.SimpleColumns_title,
+				support.SimpleColumns_data,
+			},
+			nil,
+			0,
+			`SELECT "title", "data" FROM "public"."simple_rw";`,
+		},
+		{
+			"select list, with columns",
+			[]support.SimpleColumns{
+				support.SimpleColumns_title,
+				support.SimpleColumns_data,
+			},
+			whereIDInFunc(3),
+			0,
+			`SELECT "title", "data" FROM "public"."simple_rw" WHERE "id" IN ($1, $2, $3);`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tab := NewTable("public", "simple_rw", nil)
 
-			if got := selectQuery(tab, tt.cols, 1000).String(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("selectQuery() = %v, want %v", got, tt.want)
+			if got := selectQuery(tab, tt.cols, 1000, tt.wf, tt.limit).String(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("selectQuery() =\n%v\nwant\n%v", got, tt.want)
 			}
 		})
 	}
@@ -442,7 +468,7 @@ func Benchmark_selectQuery(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		q := selectQuery(tab, retCols, tab.bufLens.createOne.get())
+		q := selectQuery(tab, retCols, tab.bufLens.createOne.get(), whereID, 1)
 		tab.bufLens.createOne.setHigher(q.Len())
 		_ = q.String()
 		q.release()

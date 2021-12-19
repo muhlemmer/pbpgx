@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
+	"constraints"
 	"fmt"
 	"strconv"
 
@@ -33,6 +34,7 @@ type query struct {
 	*stringx.Builder
 	tab        *Table
 	fieldNames []string
+	argPos     int
 }
 
 func (q *query) parseFields(req proto.Message, skipEmpty bool, exclude ...string) {
@@ -95,14 +97,16 @@ func (q *query) writeIdentifier() {
 	q.WriteEnclosedString(q.tab.table, stringx.DoubleQuotes)
 }
 
-func (q *query) writePosArgs(start, end int) {
-	for i := start; i <= end; i++ {
-		if i != start {
+func (q *query) writePosArgs(n int) {
+	for i := 0; i < n; i++ {
+		if i != 0 {
 			q.WriteString(columnSep)
 		}
 
+		q.argPos++
+
 		q.WriteByte('$')
-		q.WriteString(strconv.Itoa(i))
+		q.WriteString(strconv.Itoa(q.argPos))
 	}
 }
 
@@ -117,6 +121,7 @@ const (
 	idColumn  = "id"
 	from      = " FROM "
 	returning = " RETURNING "
+	where     = " WHERE "
 )
 
 var NoRetCols = []fmt.Stringer{}
@@ -149,7 +154,7 @@ func insertQuery[Col fmt.Stringer](tab *Table, req proto.Message, bufSize int, r
 
 	q.WriteString(values)
 	q.WriteByte('(')
-	q.writePosArgs(1, len(q.fieldNames))
+	q.writePosArgs(len(q.fieldNames))
 	q.WriteByte(')')
 
 	if len(retCols) > 0 {
@@ -163,10 +168,10 @@ func insertQuery[Col fmt.Stringer](tab *Table, req proto.Message, bufSize int, r
 }
 
 // SELECT "id", "title", "price" FROM "public"."products" WHERE "id" = $1 LIMIT 1;
-func selectQuery[ColDesc fmt.Stringer](tab *Table, cols []ColDesc, bufSize int) *query {
+func selectQuery[ColDesc fmt.Stringer, I constraints.Integer](tab *Table, cols []ColDesc, bufSize int, wf whereFunc, limit I) *query {
 	const (
-		sselect    = "SELECT "
-		whereLimit = " WHERE \"id\" = $1 LIMIT 1;"
+		sselect = "SELECT "
+		slimit  = " LIMIT "
 	)
 
 	q := tab.newQuery(bufSize)
@@ -180,7 +185,17 @@ func selectQuery[ColDesc fmt.Stringer](tab *Table, cols []ColDesc, bufSize int) 
 
 	q.WriteString(from)
 	q.writeIdentifier()
-	q.WriteString(whereLimit)
+
+	if wf != nil {
+		wf(q)
+	}
+
+	if limit > 0 {
+		q.WriteString(slimit)
+		q.WriteString(strconv.FormatInt(int64(limit), 10))
+	}
+
+	q.WriteByte(';')
 
 	return q
 }
@@ -201,8 +216,6 @@ func updateQuery[Col fmt.Stringer](tab *Table, data proto.Message, bufSize int, 
 
 	q.WriteString(set)
 
-	var pos int
-
 	for i, name := range q.fieldNames {
 		if i != 0 {
 			q.WriteString(", ")
@@ -210,14 +223,12 @@ func updateQuery[Col fmt.Stringer](tab *Table, data proto.Message, bufSize int, 
 		q.WriteEnclosedString(name, stringx.DoubleQuotes)
 		q.WriteString(" = ")
 
-		pos = i + 1
-		q.writePosArgs(pos, pos)
+		q.writePosArgs(1)
 	}
 
 	q.WriteString(where)
 
-	pos++
-	q.writePosArgs(pos, pos)
+	q.writePosArgs(1)
 
 	if len(retCols) > 0 {
 		q.WriteString(returning)
