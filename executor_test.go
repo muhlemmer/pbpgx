@@ -176,3 +176,83 @@ func TestQueryRow(t *testing.T) {
 		}
 	})
 }
+
+func TestQueryStream(t *testing.T) {
+	type args struct {
+		ctx    context.Context
+		stream *testServerStream[*support.Simple]
+		sql    string
+		args   []interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []*support.Simple
+		wantErr bool
+	}{
+		{
+			"CTX error",
+			args{
+				testlib.ECTX,
+				&testServerStream[*support.Simple]{},
+				"select * from simple_ro;",
+				nil,
+			},
+			nil,
+			true,
+		},
+		{
+			"Simple query",
+			args{
+				testlib.CTX,
+				&testServerStream[*support.Simple]{},
+				"select * from simple_ro;",
+				nil,
+			},
+			[]*support.Simple{
+				{Id: 1, Title: "one", Data: "foo bar"},
+				{Id: 2, Title: "two"},
+				{Id: 3, Data: "golden triangle"},
+				{Id: 4, Title: "four", Data: "hello world"},
+				{Id: 5, Title: "five", Data: "five is a four letter word"},
+			},
+			false,
+		},
+		{
+			"Query with arguments",
+			args{
+				testlib.CTX,
+				&testServerStream[*support.Simple]{},
+				"select title from simple_ro where id in ($1, $2, $3);",
+				[]interface{}{2, 3, 4},
+			},
+			[]*support.Simple{
+				{Title: "two"},
+				{},
+				{Title: "four"},
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := QueryStream[*support.Simple](tt.args.ctx, testlib.ConnPool, tt.args.stream, tt.args.sql, tt.args.args...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			got := tt.args.stream.results
+
+			if len(got) != len(tt.want) {
+				t.Errorf("Query() = %v, want %v", got, tt.want)
+			}
+
+			for i, want := range tt.want {
+				if !proto.Equal(got[i], want) {
+					t.Errorf("Query().[%d] = %v, want %v", i, got[i], want)
+				}
+			}
+		})
+	}
+}

@@ -49,7 +49,13 @@ func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) ([
 	return fields, nil
 }
 
-func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err error) {
+type scanner[M proto.Message] struct {
+	rows pgx.Rows
+	msg  pr.Message
+	dest []interface{}
+}
+
+func newScanner[M proto.Message](rows pgx.Rows) (*scanner[M], error) {
 	var m M
 
 	msg := m.ProtoReflect()
@@ -58,28 +64,94 @@ func scanLimit[M proto.Message](limit int, rows pgx.Rows) (results []M, err erro
 		return nil, err
 	}
 
-	for i := 0; rows.Next() && (limit == 0 || i < limit); i++ {
-		msg = msg.New()
+	return &scanner[M]{
+		rows: rows,
+		msg:  msg,
+		dest: dest,
+	}, nil
+}
 
-		if err := rows.Scan(dest...); err != nil {
-			return nil, fmt.Errorf("pbpgx.Scan into proto.Message %T: %w", m, err)
-		}
+func (s *scanner[M]) scanRow() (M, error) {
+	msg := s.msg.New()
 
-		for _, v := range dest {
-			d := v.(*Value)
-			msg.Set(d.fieldDesc, d.value())
-		}
-
-		results = append(results, msg.Interface().(M))
+	if err := s.rows.Scan(s.dest...); err != nil {
+		var m M
+		return m, fmt.Errorf("pbpgx.Scan into proto.Message %T: %w", m, err)
 	}
 
-	return results, nil
+	for _, v := range s.dest {
+		d := v.(*Value)
+		msg.Set(d.fieldDesc, d.value())
+	}
+
+	return msg.Interface().(M), nil
 }
 
 // Scan returns a slice of proto messages of type M, filled with data from rows.
 // It matches field names from rows to field names of the proto message type M.
 // An error is returned if a column name in rows is not found in te message type's field names,
 // if a matched message field is of an unsupported type or any scan error reported by the pgx driver.
-func Scan[M proto.Message](rows pgx.Rows) ([]M, error) {
-	return scanLimit[M](0, rows)
+func Scan[M proto.Message](rows pgx.Rows) (result []M, err error) {
+	s, err := newScanner[M](rows)
+	if err != nil {
+		return nil, err
+	}
+
+	for s.rows.Next() {
+		msg, err := s.scanRow()
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, msg)
+	}
+
+	return result, err
+}
+
+// ScanOne returns a single instance of proto Message with type M, filled with data from rows.
+// pgx.ErrNoRows is returned when there are rows to scan.
+// See Scan for field name matching rules.
+func ScanOne[M proto.Message](rows pgx.Rows) (M, error) {
+	var m M
+
+	s, err := newScanner[M](rows)
+	if err != nil {
+		return m, err
+	}
+
+	if !s.rows.Next() {
+		return m, pgx.ErrNoRows
+	}
+
+	return s.scanRow()
+}
+
+type ServerStream[M proto.Message] interface {
+	Send(M) error
+}
+
+// ScanStream writes instances of proto messages with type M to stream.Send(), filled with data from rows.
+// ScanStream returns a nil error when rows is exhausted or an error when one is encountered,
+// durng scanning or sending.
+// Messages may already have been send when returning an error.
+// See Scan for field name matching rules.
+func ScanStream[M proto.Message](rows pgx.Rows, stream ServerStream[M]) error {
+	s, err := newScanner[M](rows)
+	if err != nil {
+		return err
+	}
+
+	for s.rows.Next() {
+		msg, err := s.scanRow()
+		if err != nil {
+			return err
+		}
+
+		if err := stream.Send(msg); err != nil {
+			return fmt.Errorf("pbpgx.ScanStream: %w", err)
+		}
+	}
+
+	return nil
 }

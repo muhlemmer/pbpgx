@@ -259,3 +259,136 @@ func TestScan_unsuported2(t *testing.T) {
 		})
 	}
 }
+
+type testServerStream[M proto.Message] struct {
+	results []M
+	err     error
+}
+
+func (s *testServerStream[M]) Send(msg M) error {
+	s.results = append(s.results, msg)
+	return s.err
+}
+
+func TestScanStream(t *testing.T) {
+	type args struct {
+		names  []string
+		rows   [][]interface{}
+		stream *testServerStream[*support.Supported]
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantResults []*support.Supported
+		wantErr     bool
+	}{
+		{
+			"Destination error",
+			args{
+				[]string{"foo", "bar"},
+				[][]interface{}{
+					{1, 2},
+				},
+				&testServerStream[*support.Supported]{},
+			},
+			nil,
+			true,
+		},
+		{
+			"Scan error",
+			args{
+				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64"},
+				[][]interface{}{
+					{1, 2},
+				},
+				&testServerStream[*support.Supported]{},
+			},
+			nil,
+			true,
+		},
+		{
+			"All supported",
+			args{
+				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64"},
+				[][]interface{}{
+					{true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64)},
+					{false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46)},
+				},
+				&testServerStream[*support.Supported]{},
+			},
+			[]*support.Supported{
+				{
+					Bl:  true,
+					I32: 1,
+					I64: 2,
+					F:   1.1,
+					D:   2.2,
+					S:   "Hello World!",
+					Bt:  []byte("Foo bar"),
+					U32: 32,
+					U64: 64,
+				},
+				{
+					Bl:  false,
+					I32: 3,
+					I64: 4,
+					F:   3.1,
+					D:   4.2,
+					S:   "Bye World!",
+					Bt:  []byte{},
+					U32: 23,
+					U64: 46,
+				},
+			},
+			false,
+		},
+		{
+			"Send error",
+			args{
+				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64"},
+				[][]interface{}{
+					{true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64)},
+					{false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46)},
+				},
+				&testServerStream[*support.Supported]{
+					err: errors.New("foo"),
+				},
+			},
+			[]*support.Supported{
+				{
+					Bl:  true,
+					I32: 1,
+					I64: 2,
+					F:   1.1,
+					D:   2.2,
+					S:   "Hello World!",
+					Bt:  []byte("Foo bar"),
+					U32: 32,
+					U64: 64,
+				},
+			},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ScanStream[*support.Supported](newTestRows(tt.args.names, tt.args.rows), tt.args.stream)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			gotResults := tt.args.stream.results
+
+			if len(gotResults) != len(tt.wantResults) {
+				t.Fatalf("Scan() =\n%s\nwant\n%s", gotResults, tt.wantResults)
+			}
+
+			for i, want := range tt.wantResults {
+				if !proto.Equal(gotResults[i], want) {
+					t.Errorf("Scan() =\n%s\nwant\n%s", gotResults[i], want)
+				}
+			}
+		})
+	}
+}

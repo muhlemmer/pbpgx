@@ -49,7 +49,7 @@ func Query[M proto.Message](ctx context.Context, x Executor, sql string, args ..
 	}
 	defer rows.Close()
 
-	return scanLimit[M](0, rows)
+	return Scan[M](rows)
 }
 
 // QueryRow runs the passed sql with args on the Executor x,
@@ -61,22 +61,27 @@ func QueryRow[M proto.Message](ctx context.Context, x Executor, sql string, args
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var m M
-
 	rows, err := x.Query(ctx, sql, args...)
 	if err != nil {
+		var m M
 		return m, fmt.Errorf("pbpgx.QueryRow: %w", err)
 	}
 	defer rows.Close()
 
-	results, err := scanLimit[M](1, rows)
+	return ScanOne[M](rows)
+}
+
+// QueryStream runs the passed sql with args on the Executor x.
+// Results are send to stream. See ScanStream for more details.
+func QueryStream[M proto.Message](ctx context.Context, x Executor, stream ServerStream[M], sql string, args ...interface{}) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	rows, err := x.Query(ctx, sql, args...)
 	if err != nil {
-		return m, err
+		return fmt.Errorf("pbpgx.Query: %w", err)
 	}
+	defer rows.Close()
 
-	if len(results) < 1 {
-		return m, pgx.ErrNoRows
-	}
-
-	return results[0], nil
+	return ScanStream(rows, stream)
 }
