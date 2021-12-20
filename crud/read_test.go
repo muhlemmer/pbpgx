@@ -28,10 +28,6 @@ import (
 )
 
 func TestReadOne(t *testing.T) {
-	query := &support.SimpleQuery{
-		Id: 5,
-	}
-
 	want := &support.Simple{
 		Id:    5,
 		Title: "five",
@@ -40,7 +36,7 @@ func TestReadOne(t *testing.T) {
 
 	tab := NewTable("public", "simple_ro", nil)
 
-	got, err := ReadOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, testlib.ConnPool, tab, query)
+	got, err := ReadOne[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 5, ColumnWildcard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +70,7 @@ func TestReadAll(t *testing.T) {
 
 	tab := NewTable("public", "simple_ro", nil)
 
-	got, err := ReadAll[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 4, cols...)
+	got, err := ReadAll[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 4, cols)
 	if err != nil {
 		t.Fatal(err)
 	}

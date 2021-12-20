@@ -327,7 +327,7 @@ func Test_insertQuery_noReturn(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := insertQuery(tt.args.tab, tt.args.req, 1000, NoRetCols, tt.args.skipEmpty)
+			q := insertQuery(tt.args.tab, tt.args.req, 1000, noColumns, tt.args.skipEmpty)
 
 			if got := q.String(); got != tt.want {
 				t.Errorf("insertQuery() =\n%s\nwant\n%s", got, tt.want)
@@ -339,7 +339,7 @@ func Test_insertQuery_noReturn(t *testing.T) {
 func Test_insertQuery_Return(t *testing.T) {
 	type args struct {
 		tab       *Table
-		retCols   []support.SimpleColumns
+		retCols   []ColName
 		req       proto.Message
 		skipEmpty bool
 		exclude   []string
@@ -353,7 +353,7 @@ func Test_insertQuery_Return(t *testing.T) {
 			"exlude and return id",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 				},
 				req: &support.Simple{
@@ -367,10 +367,25 @@ func Test_insertQuery_Return(t *testing.T) {
 			`INSERT INTO "simple" ("title", "data") VALUES ($1, $2) RETURNING "id";`,
 		},
 		{
+			"exlude and return wildcard",
+			args{
+				tab:     NewTable("", "simple", nil),
+				retCols: ColumnWildcard,
+				req: &support.Simple{
+					Id:    31,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				skipEmpty: false,
+				exclude:   []string{"id"},
+			},
+			`INSERT INTO "simple" ("title", "data") VALUES ($1, $2) RETURNING *;`,
+		},
+		{
 			"exlude id and return all",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
@@ -424,21 +439,21 @@ func Benchmark_insertQuery(b *testing.B) {
 func Test_selectQuery(t *testing.T) {
 	tests := []struct {
 		name  string
-		cols  []support.SimpleColumns
+		cols  []ColName
 		wf    whereFunc
 		limit int
 		want  string
 	}{
 		{
 			"select one, nil columns",
-			nil,
+			ColumnWildcard,
 			whereID,
 			1,
 			`SELECT * FROM "public"."simple_rw" WHERE "id" = $1 LIMIT 1;`,
 		},
 		{
 			"select one, with columns",
-			[]support.SimpleColumns{
+			[]ColName{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
 			},
@@ -448,7 +463,7 @@ func Test_selectQuery(t *testing.T) {
 		},
 		{
 			"select all, with columns",
-			[]support.SimpleColumns{
+			[]ColName{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
 			},
@@ -458,7 +473,7 @@ func Test_selectQuery(t *testing.T) {
 		},
 		{
 			"select list, with columns",
-			[]support.SimpleColumns{
+			[]ColName{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
 			},
@@ -546,7 +561,7 @@ func Test_updateQuery_noReturn(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := updateQuery(tt.args.tab, tt.args.req, 1000, NoRetCols, tt.args.skipEmpty)
+			q := updateQuery(tt.args.tab, tt.args.req, 1000, noColumns, tt.args.skipEmpty)
 
 			if got := q.String(); got != tt.want {
 				t.Errorf("updateQuery() =\n%s\nwant\n%s", got, tt.want)
@@ -558,7 +573,7 @@ func Test_updateQuery_noReturn(t *testing.T) {
 func Test_updateQuery_Return(t *testing.T) {
 	type args struct {
 		tab       *Table
-		retCols   []support.SimpleColumns
+		retCols   []ColName
 		req       proto.Message
 		skipEmpty bool
 		exclude   []string
@@ -572,7 +587,7 @@ func Test_updateQuery_Return(t *testing.T) {
 			"exlude and return id",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 				},
 				req: &support.Simple{
@@ -589,7 +604,7 @@ func Test_updateQuery_Return(t *testing.T) {
 			"exlude id and return all",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
@@ -603,6 +618,21 @@ func Test_updateQuery_Return(t *testing.T) {
 				exclude:   []string{"id"},
 			},
 			`UPDATE "simple" SET "title" = $1, "data" = $2 WHERE "id" = $3 RETURNING "id", "title", "data";`,
+		},
+		{
+			"exlude and return wildcard",
+			args{
+				tab:     NewTable("", "simple", nil),
+				retCols: ColumnWildcard,
+				req: &support.Simple{
+					Id:    31,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				skipEmpty: false,
+				exclude:   []string{"id"},
+			},
+			`UPDATE "simple" SET "title" = $1, "data" = $2 WHERE "id" = $3 RETURNING *;`,
 		},
 	}
 	for _, tt := range tests {
@@ -659,7 +689,7 @@ func Test_deleteQuery_noReturn(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := deleteQuery(tt.tab, 1000, NoRetCols)
+			q := deleteQuery(tt.tab, 1000, noColumns)
 
 			if got := q.String(); got != tt.want {
 				t.Errorf("deleteQuery() =\n%s\nwant\n%s", got, tt.want)
@@ -671,7 +701,7 @@ func Test_deleteQuery_noReturn(t *testing.T) {
 func Test_deleteQuery_Return(t *testing.T) {
 	type args struct {
 		tab     *Table
-		retCols []support.SimpleColumns
+		retCols []ColName
 	}
 	tests := []struct {
 		name string
@@ -682,7 +712,7 @@ func Test_deleteQuery_Return(t *testing.T) {
 			"return id",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 				},
 			},
@@ -692,13 +722,21 @@ func Test_deleteQuery_Return(t *testing.T) {
 			"return all",
 			args{
 				tab: NewTable("", "simple", nil),
-				retCols: []support.SimpleColumns{
+				retCols: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
 			},
 			`DELETE FROM "simple" WHERE "id" = $1 RETURNING "id", "title", "data";`,
+		},
+		{
+			"return wildcard",
+			args{
+				tab:     NewTable("", "simple", nil),
+				retCols: ColumnWildcard,
+			},
+			`DELETE FROM "simple" WHERE "id" = $1 RETURNING *;`,
 		},
 	}
 	for _, tt := range tests {

@@ -127,10 +127,25 @@ const (
 	where     = " WHERE "
 )
 
-var NoRetCols = []fmt.Stringer{}
+type ColName interface {
+	fmt.Stringer
+}
 
-func writeColumns[Col fmt.Stringer](q *query, cols []Col) {
-	for i, col := range cols {
+// ColumnWildcard results in the selection of all available columns in a table.
+// It only needs to be used when a return message is required, but the query does
+// not cary column information.
+// Note that, when selecting by wildcard, the requested return type must carry
+// all fields as named by the table columns, returned by the query.
+var ColumnWildcard = []ColName{}
+
+var noColumns = ([]ColName)(nil)
+
+func writeColumns[Col ColName](q *query, columns []Col) {
+	if len(columns) == 0 {
+		q.WriteByte('*')
+	}
+
+	for i, col := range columns {
 		if i != 0 {
 			q.WriteString(", ")
 		}
@@ -138,8 +153,15 @@ func writeColumns[Col fmt.Stringer](q *query, cols []Col) {
 	}
 }
 
+func writeReturnClause[Col ColName](q *query, columns []Col) {
+	if columns != nil {
+		q.WriteString(returning)
+		writeColumns(q, columns)
+	}
+}
+
 // INSERT INTO "public"."simple_rw" ("id", "title") VALUES ($1, $2) RETURNING "id";
-func insertQuery[Col fmt.Stringer](tab *Table, req proto.Message, bufSize int, retCols []Col, skipEmpty bool, exclude ...string) *query {
+func insertQuery[Col ColName](tab *Table, req proto.Message, bufSize int, columns []Col, skipEmpty bool, exclude ...string) *query {
 	const (
 		insertInto = "INSERT INTO "
 		values     = " VALUES "
@@ -160,10 +182,7 @@ func insertQuery[Col fmt.Stringer](tab *Table, req proto.Message, bufSize int, r
 	q.writePosArgs(len(q.fieldNames))
 	q.WriteByte(')')
 
-	if len(retCols) > 0 {
-		q.WriteString(returning)
-		writeColumns(q, retCols)
-	}
+	writeReturnClause(q, columns)
 
 	q.WriteByte(';')
 
@@ -171,7 +190,7 @@ func insertQuery[Col fmt.Stringer](tab *Table, req proto.Message, bufSize int, r
 }
 
 // SELECT "id", "title", "price" FROM "public"."products" WHERE "id" = $1 LIMIT 1;
-func selectQuery[ColDesc fmt.Stringer, I constraints.Integer](tab *Table, cols []ColDesc, bufSize int, wf whereFunc, limit I) *query {
+func selectQuery[ColDesc fmt.Stringer, I constraints.Integer](tab *Table, columns []ColDesc, bufSize int, wf whereFunc, limit I) *query {
 	const (
 		sselect = "SELECT "
 		slimit  = " LIMIT "
@@ -180,11 +199,7 @@ func selectQuery[ColDesc fmt.Stringer, I constraints.Integer](tab *Table, cols [
 	q := tab.newQuery(bufSize)
 	q.WriteString(sselect)
 
-	if len(cols) > 0 {
-		writeColumns(q, cols)
-	} else {
-		q.WriteByte('*')
-	}
+	writeColumns(q, columns)
 
 	q.WriteString(from)
 	q.writeIdentifier()
@@ -204,7 +219,7 @@ func selectQuery[ColDesc fmt.Stringer, I constraints.Integer](tab *Table, cols [
 }
 
 // UPDATE "public"."simple" SET "title" = $1, "data" = $2 WHERE "id" = $3 RETURNING ("title", "data");
-func updateQuery[Col fmt.Stringer](tab *Table, data proto.Message, bufSize int, retCols []Col, skipEmpty bool, exclude ...string) *query {
+func updateQuery[Col fmt.Stringer](tab *Table, data proto.Message, bufSize int, columns []Col, skipEmpty bool, exclude ...string) *query {
 	const (
 		update = "UPDATE "
 		set    = " SET "
@@ -233,17 +248,14 @@ func updateQuery[Col fmt.Stringer](tab *Table, data proto.Message, bufSize int, 
 
 	q.writePosArgs(1)
 
-	if len(retCols) > 0 {
-		q.WriteString(returning)
-		writeColumns(q, retCols)
-	}
+	writeReturnClause(q, columns)
 
 	q.WriteByte(';')
 	return q
 }
 
 // DELETE FROM "public"."simple" WHERE "id" = $1 RETURNING ("id, "title", "data");
-func deleteQuery[Col fmt.Stringer](tab *Table, bufSize int, retCols []Col) *query {
+func deleteQuery[Col fmt.Stringer](tab *Table, bufSize int, columns []Col) *query {
 	const (
 		delete = "DELETE"
 		where  = " WHERE \"id\" = $1"
@@ -256,10 +268,7 @@ func deleteQuery[Col fmt.Stringer](tab *Table, bufSize int, retCols []Col) *quer
 	q.writeIdentifier()
 	q.WriteString(where)
 
-	if len(retCols) > 0 {
-		q.WriteString(returning)
-		writeColumns(q, retCols)
-	}
+	writeReturnClause(q, columns)
 
 	q.WriteByte(';')
 

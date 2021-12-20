@@ -33,7 +33,7 @@ import (
 // matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
 func CreateOne(ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message) (pgconn.CommandTag, error) {
-	q := insertQuery(tab, req, tab.bufLens.createOne.get(), NoRetCols, true)
+	q := insertQuery(tab, req, tab.bufLens.createOne.get(), noColumns, true)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 
@@ -53,9 +53,14 @@ func CreateOne(ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Mess
 // Each field value in req will be set to a corresponding column,
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
-// The returned message will have the fields set as identified by retCols.
-func CreateReturnOne[M proto.Message, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message, retCols []ColDesc) (m M, err error) {
-	q := insertQuery(tab, req, tab.bufLens.createOne.get(), retCols, true)
+//
+// The returned message will have the fields set as identified by columns.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All returned columns must be present as field names in M.
+// See scan for more details.
+func CreateReturnOne[M proto.Message, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message, columns []ColDesc) (m M, err error) {
+	q := insertQuery(tab, req, tab.bufLens.createOne.get(), columns, true)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 

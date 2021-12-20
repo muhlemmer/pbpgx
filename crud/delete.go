@@ -21,7 +21,6 @@ package crud
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
@@ -30,7 +29,7 @@ import (
 
 // DeleteOne record from a Table, identified by id.
 func DeleteOne(ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}) (pgconn.CommandTag, error) {
-	q := deleteQuery(tab, tab.bufLens.deleteOne.get(), NoRetCols)
+	q := deleteQuery(tab, tab.bufLens.deleteOne.get(), noColumns)
 	defer q.release()
 	go tab.bufLens.deleteOne.setHigher(q.Len())
 
@@ -40,13 +39,18 @@ func DeleteOne(ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}
 	return x.Exec(ctx, q.String(), id)
 }
 
-// DeleteOne record from a Table, identified by selector.
+// DeleteOne record from a Table, identified by id.
 // Returns the deleted record in a message of type M.
-// The returned message will have the fields set as returned by selector.GetCols().
-func DeleteReturnOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, selector Selector[ID, ColDesc]) (M, error) {
-	q := deleteQuery(tab, tab.bufLens.deleteOne.get(), selector.GetColumns())
+//
+// The returned message will have the fields set named by columns.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All columns must be present as field names in M.
+// See scan for more details.
+func DeleteReturnOne[M proto.Message, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, columns []Col) (M, error) {
+	q := deleteQuery(tab, tab.bufLens.deleteOne.get(), columns)
 	defer q.release()
 	go tab.bufLens.deleteOne.setHigher(q.Len())
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), selector.GetId())
+	return pbpgx.QueryRow[M](ctx, x, q.String(), id)
 }

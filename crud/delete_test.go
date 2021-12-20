@@ -75,9 +75,9 @@ func TestDeleteReturnOne(t *testing.T) {
 	tab := NewTable("", "simple_ro", ColumnDefault{"id": Zero})
 
 	tests := []struct {
-		name     string
-		selector *support.SimpleQuery
-		want     *support.Simple
+		name  string
+		query *support.SimpleQuery
+		want  *support.Simple
 	}{
 		{
 			"return all",
@@ -119,7 +119,7 @@ func TestDeleteReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := DeleteReturnOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, tx, tab, tt.selector)
+			got, err := DeleteReturnOne[*support.Simple](testlib.CTX, tx, tab, tt.query.Id, tt.query.Columns)
 			if err != nil {
 				t.Fatal(err)
 			}

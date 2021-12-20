@@ -32,8 +32,8 @@ import (
 // Each field value will be set to a corresponding column,
 // matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
-func UpdateOne[ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, data proto.Message) (pgconn.CommandTag, error) {
-	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), NoRetCols, true)
+func UpdateOne(ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, data proto.Message) (pgconn.CommandTag, error) {
+	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), ColumnWildcard, true)
 	defer q.release()
 	go tab.bufLens.updateOne.setHigher(q.Len())
 
@@ -49,14 +49,19 @@ func UpdateOne[ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Execut
 	return x.Exec(ctx, q.String(), args...)
 }
 
-// UpdateReturnOne updates one record in a Table, identified by selector, with the contents of the data Message
+// UpdateReturnOne updates one record in a Table, identified by id, with the contents of the data Message
 // and returns the result in a message of type M.
 // Each field value in req will be set to a corresponding column,
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
-// The returned message will have the fields set as returned by selector.GetColumns().
-func UpdateReturnOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, selector Selector[ID, ColDesc], data proto.Message) (msg M, err error) {
-	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), selector.GetColumns(), true)
+//
+// The returned message will have the fields set as named by columns.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All returned columns must be present as field names in M.
+// See scan for more details.
+func UpdateReturnOne[M proto.Message, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, data proto.Message, columns []Col) (msg M, err error) {
+	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), columns, true)
 	defer q.release()
 	go tab.bufLens.updateOne.setHigher(q.Len())
 
@@ -64,7 +69,7 @@ func UpdateReturnOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.
 	if err != nil {
 		return msg, fmt.Errorf("crud.UpdateOne: %w", err)
 	}
-	args = append(args, selector.GetId())
+	args = append(args, id)
 
 	return pbpgx.QueryRow[M](ctx, x, q.String(), args...)
 }

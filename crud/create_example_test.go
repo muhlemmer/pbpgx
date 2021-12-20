@@ -42,14 +42,19 @@ func ExampleCreateReturnOne() {
 	}
 	defer conn.Close(ctx)
 
-	prod := &gen.Product{
-		Title: "Great deal!",
-		Price: 9.99,
+	query := &gen.ProductCreateQuery{
+		Data: &gen.Product{
+			Title: "Great deal!",
+			Price: 9.99,
+		},
+		Columns: []gen.ProductColumns_Names{
+			gen.ProductColumns_id,
+			gen.ProductColumns_title,
+			gen.ProductColumns_price,
+		},
 	}
 
-	result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, prod,
-		[]gen.ProductColumns_Names{gen.ProductColumns_id, gen.ProductColumns_title, gen.ProductColumns_price},
-	)
+	result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, query.GetData(), query.GetColumns())
 	if err != nil {
 		panic(err)
 	}

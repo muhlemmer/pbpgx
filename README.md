@@ -94,6 +94,8 @@ Benchmark_updateQuery-16    	 1217715	      1316 ns/op	     224 B/op	       3 al
 Benchmark_deleteQuery-16    	 2811507	       660.9 ns/op	     128 B/op	       2 allocs/op
 ```
 
+#### Usage
+
 Usage is simple. First we extend on our [protocal buffer definitions](example_gen/example.proto) from above:
 
 ```
@@ -109,6 +111,11 @@ message ProductQuery {
     int64 id = 1;
     repeated ProductColumns.Names columns = 2;
 }
+
+message ProductCreateQuery {
+    Product data = 1;
+    repeated ProductColumns.Names columns = 2;
+}
 ```
 
 In our implementation code we reate a `Table` once, which takes care of query builder re-use:
@@ -117,31 +124,38 @@ In our implementation code we reate a `Table` once, which takes care of query bu
 tab := crud.NewTable("public", "products", nil)
 ```
 
-For reading a single entry, the request argument must implement the `Selector` interface constraint, carying the unique ID and Columns to be `SELECT`ed.
-The generated `ProductQuery` implements `Selector`.
+We can use the `id` and `columns` from an incomming query to read a single message,
+returned as the requested type `Product`:
 
 ```
 query := &gen.ProductQuery{
     Id:      2,
     Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
 }
-```
 
-Using the above incoming query, we just need to make one call to read a single message of the required return type `Product`:
-
-```
-result, err := crud.ReadOne[*gen.Product, int64, gen.ProductColumns_Names](ctx, conn, tab, query)
+result, err := crud.ReadOne[*gen.Product](ctx, conn, tab, query.Id, query.Columns)
 if err != nil {
     panic(err)
 }
+
 ```
 
 Or, create a new entry (`INSERT`), returing specific fields after the database assigns the primary ID:
 
 ```
-result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, prod,
-    []gen.ProductColumns_Names{gen.ProductColumns_id, gen.ProductColumns_title, gen.ProductColumns_price},
-)
+query := &gen.ProductCreateQuery{
+    Data: &gen.Product{
+        Title: "Great deal!",
+        Price: 9.99,
+    },
+    Columns: []gen.ProductColumns_Names{
+        gen.ProductColumns_id,
+        gen.ProductColumns_title,
+        gen.ProductColumns_price,
+    },
+}
+
+result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, query.GetData(), query.GetColumns())
 if err != nil {
     panic(err)
 }

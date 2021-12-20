@@ -77,7 +77,7 @@ func TestUpdateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			_, err = UpdateOne[int32, support.SimpleColumns](testlib.CTX, tx, tab, 5, tt.data)
+			_, err = UpdateOne(testlib.CTX, tx, tab, 5, tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -103,8 +103,8 @@ func TestUpdateReturnOne(t *testing.T) {
 	tab := NewTable("", "simple_ro", ColumnDefault{"id": Zero})
 
 	type args struct {
-		selector *support.SimpleQuery
-		data     proto.Message
+		query *support.SimpleQuery
+		data  proto.Message
 	}
 	tests := []struct {
 		name    string
@@ -194,7 +194,7 @@ func TestUpdateReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := UpdateReturnOne[*support.Simple, int32, support.SimpleColumns](testlib.CTX, tx, tab, tt.args.selector, tt.args.data)
+			got, err := UpdateReturnOne[*support.Simple](testlib.CTX, tx, tab, tt.args.query.GetId(), tt.args.data, tt.args.query.GetColumns())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return

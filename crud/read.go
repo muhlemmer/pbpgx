@@ -22,53 +22,50 @@ package crud
 import (
 	"constraints"
 	"context"
-	"fmt"
 
 	"github.com/muhlemmer/pbpgx"
 	"google.golang.org/protobuf/proto"
 )
 
-// Selector is the proto.Message format accepted for Read query building
-// and selecting single records after a write action.
-type Selector[ID any, ColDesc fmt.Stringer] interface {
-	proto.Message
-
-	// GetId may return any type for ID.
-	// The returned value will be used as-is as unique identifier in the "id"
-	// column of the table being accessed.
-	// The type must by compatible with the PostgreSQL type of the "id" column.
-	// This method is ussualy generated for proto messages with an `id` field defined.
-	GetId() ID
-
-	// GetColumns returns a slice of fmt.Stringer, as column descriptors.
-	// This method is ussualy generated for proto messages with a `columns` field defined.
-	// This field should be a "repeated enum" type. Each enum value equals a column name.
-	GetColumns() []ColDesc
-}
-
-// ReadOne record from a table, identified by query.Id.
+// ReadOne record from a table, identified by id.
 // The returned message will be of type M,
-// with the fields corresponding to query.Columns populated.
-// All column names in query.Columns must be present as field names in M.
+// with the fields corresponding to columns populated.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All columns must be present as field names in M.
 // See scan for more details.
-func ReadOne[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, query Selector[ID, ColDesc]) (M, error) {
-	q := selectQuery(tab, query.GetColumns(), tab.bufLens.read.n, whereID, 1)
+func ReadOne[M proto.Message, ID any, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, id ID, columns []Col) (M, error) {
+	q := selectQuery(tab, columns, tab.bufLens.read.n, whereID, 1)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), query.GetId())
+	return pbpgx.QueryRow[M](ctx, x, q.String(), id)
 }
 
-func ReadAll[M proto.Message, I constraints.Integer, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, limit I, cols ...ColDesc) ([]M, error) {
-	q := selectQuery(tab, cols, tab.bufLens.read.n, nil, limit)
+// ReadAll records up to limit from a table.
+// The returned messages will be a slice of type M,
+// with the fields corresponding to columns populated.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All columns must be present as field names in M.
+// See scan for more details.
+func ReadAll[M proto.Message, I constraints.Integer, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, limit I, columns []Col) ([]M, error) {
+	q := selectQuery(tab, columns, tab.bufLens.read.n, nil, limit)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 
 	return pbpgx.Query[M](ctx, x, q.String())
 }
 
-func ReadList[M proto.Message, ID any, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, ids []ID, cols ...ColDesc) ([]M, error) {
-	q := selectQuery(tab, cols, tab.bufLens.read.n, whereIDInFunc(len(ids)), 0)
+// ReadList returns a list of records from a table, identified by ids.
+// The returned messages will be a slice of type M,
+// with the fields corresponding to columns populated.
+// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
+// returning all available columns in the table.
+// All columns must be present as field names in M.
+// See scan for more details.
+func ReadList[M proto.Message, ID any, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, ids []ID, columns ...Col) ([]M, error) {
+	q := selectQuery(tab, columns, tab.bufLens.read.n, whereIDInFunc(len(ids)), 0)
 	defer q.release()
 	go tab.bufLens.createOne.setHigher(q.Len())
 

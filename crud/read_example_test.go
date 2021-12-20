@@ -47,7 +47,7 @@ func ExampleReadOne() {
 		Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
 	}
 
-	result, err := crud.ReadOne[*gen.Product, int64, gen.ProductColumns_Names](ctx, conn, tab, query)
+	result, err := crud.ReadOne[*gen.Product](ctx, conn, tab, query.Id, query.Columns)
 	if err != nil {
 		panic(err)
 	}

@@ -45,3 +45,8 @@ message ProductQuery {
     int64 id = 1;
     repeated ProductColumns.Names columns = 2;
 }
+
+message ProductCreateQuery {
+    Product data = 1;
+    repeated ProductColumns.Names columns = 2;
+}
