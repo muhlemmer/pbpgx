@@ -25,6 +25,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
+	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,42 +33,43 @@ import (
 // Each field value will be set to a corresponding column,
 // matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
-func CreateOne(ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message) (pgconn.CommandTag, error) {
-	q := insertQuery(tab, req, tab.bufLens.createOne.get(), noColumns, true)
-	defer q.release()
-	go tab.bufLens.createOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message) (pgconn.CommandTag, error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	fieldNames := b.Insert(tab.schema, tab.table, data, nil, true)
 
-	args, err := q.parseArgs(req, 0)
+	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
 		return nil, fmt.Errorf("crud.CreateOne: %w", err)
 	}
 
-	return x.Exec(ctx, q.String(), args...)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	return x.Exec(ctx, b.String(), args...)
 }
 
 // CreateReturnOne creates one record in a Table, with the contents of the req Message
-// and returns the result in a message of type M.
-// Each field value in req will be set to a corresponding column,
+// and returns the result in a message of type Record.
+// Each field value in msg will be set to a corresponding column,
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
 //
-// The returned message will have the fields set as identified by columns.
+// The returned message will have the fields set as identified by returnColumns.
 // If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
 // returning all available columns in the table.
-// All returned columns must be present as field names in M.
-// See scan for more details.
-func CreateReturnOne[M proto.Message, ColDesc fmt.Stringer](ctx context.Context, x pbpgx.Executor, tab *Table, req proto.Message, columns []ColDesc) (m M, err error) {
-	q := insertQuery(tab, req, tab.bufLens.createOne.get(), columns, true)
-	defer q.release()
-	go tab.bufLens.createOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) CreateReturnOne(ctx context.Context, x pbpgx.Executor, msg proto.Message, returnColumns []Col) (m Record, err error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	args, err := q.parseArgs(req, 0)
+	fieldNames := b.Insert(tab.schema, tab.table, msg, returnColumns, true)
+
+	args, err := query.ParseArgs(msg, fieldNames, tab.cd)
 	if err != nil {
+		var m Record
 		return m, fmt.Errorf("crud.CreateOne: %w", err)
 	}
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), args...)
+	return pbpgx.QueryRow[Record](ctx, x, b.String(), args...)
 }

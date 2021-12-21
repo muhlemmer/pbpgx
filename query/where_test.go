@@ -17,22 +17,34 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package crud
+package query
 
-import (
-	"os"
-	"testing"
+import "testing"
 
-	"github.com/muhlemmer/pbpgx/internal/support"
-	"github.com/muhlemmer/pbpgx/internal/testlib"
-	"github.com/muhlemmer/pbpgx/query"
-)
+func Test_whereID(t *testing.T) {
+	b := &Builder[ColName]{
+		argPos: 2,
+	}
 
-var (
-	simpleRoTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_ro", query.ColumnDefault{"id": query.Zero})
-	simpleRwTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_rw", query.ColumnDefault{"id": query.Zero})
-)
+	WhereID(b)
 
-func TestMain(m *testing.M) {
-	os.Exit(testlib.TestMain(m))
+	const want = " WHERE \"id\" = $3"
+
+	if got := b.String(); got != want {
+		t.Errorf("WhereID = %s, want %s", got, want)
+	}
+}
+
+func Test_whereIDInFunc(t *testing.T) {
+	b := &Builder[ColName]{
+		argPos: 2,
+	}
+
+	WhereIDInFunc[ColName](3)(b)
+
+	const want = " WHERE \"id\" IN ($3, $4, $5)"
+
+	if got := b.String(); got != want {
+		t.Errorf("whereID = %s, want %s", got, want)
+	}
 }

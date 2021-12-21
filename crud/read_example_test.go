@@ -30,8 +30,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func ExampleReadOne() {
-	tab := crud.NewTable("public", "products", nil)
+func ExampleTable_ReadOne() {
+	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int64]("public", "example", nil)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
@@ -47,12 +47,12 @@ func ExampleReadOne() {
 		Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
 	}
 
-	result, err := crud.ReadOne[*gen.Product](ctx, conn, tab, query.Id, query.Columns)
+	record, err := tab.ReadOne(ctx, conn, query.Id, query.Columns)
 	if err != nil {
 		panic(err)
 	}
 
-	out, _ := protojson.Marshal(result)
+	out, _ := protojson.Marshal(record)
 	fmt.Println(string(out))
 
 	// {"title":"two","price":10.45}

@@ -34,9 +34,7 @@ func TestReadOne(t *testing.T) {
 		Data:  "five is a four letter word",
 	}
 
-	tab := NewTable("public", "simple_ro", nil)
-
-	got, err := ReadOne[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 5, ColumnWildcard)
+	got, err := simpleRoTab.ReadOne(testlib.CTX, testlib.ConnPool, 5, []support.SimpleColumns{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +66,7 @@ func TestReadAll(t *testing.T) {
 		},
 	}
 
-	tab := NewTable("public", "simple_ro", nil)
-
-	got, err := ReadAll[*support.Simple](testlib.CTX, testlib.ConnPool, tab, 4, cols)
+	got, err := simpleRoTab.ReadAll(testlib.CTX, testlib.ConnPool, 4, cols)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +83,7 @@ func TestReadAll(t *testing.T) {
 }
 
 func TestReadList(t *testing.T) {
-	ids := []int{1, 4, 5}
+	ids := []int32{1, 4, 5}
 
 	cols := []support.SimpleColumns{
 		support.SimpleColumns_title,
@@ -109,20 +105,18 @@ func TestReadList(t *testing.T) {
 		},
 	}
 
-	tab := NewTable("public", "simple_ro", nil)
-
-	got, err := ReadList[*support.Simple](testlib.CTX, testlib.ConnPool, tab, ids, cols...)
+	got, err := simpleRoTab.ReadList(testlib.CTX, testlib.ConnPool, ids, cols)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("ReadAll() =\n%v\nwant\n%v", got, want)
+		t.Fatalf("ReadList() =\n%v\nwant\n%v", got, want)
 	}
 
 	for i, w := range want {
 		if !proto.Equal(got[i], w) {
-			t.Fatalf("ReadAll() =\n%v\nwant\n%v", got[i], w)
+			t.Fatalf("ReadList() =\n%v\nwant\n%v", got[i], w)
 		}
 	}
 }

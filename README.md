@@ -17,7 +17,7 @@ will support Go version 1.18 upward.
 
 When not using an ORM a typical development workflow I often experience is:
 
-1. Query preparation: Load definitions from files, execute templates or [build queries](#query-building-for-crud-operations) based on the request to the API.
+1. Query preparation: Load definitions from files, execute templates or [build queries](#query-building) based on the request to the API.
 2. [Query execution](#query-execution): Send the prepared query to the database, with metods such as `conn.Exec()` or `conn.Query()`.
 3. [Row scanning](#row-scanning): In case of the read action `conn.Query()`, the returned data must be scanned with `rows.Next()` and `rows.Scan()`,
     checking for errors on each iteration.
@@ -79,20 +79,12 @@ if err != nil {
 }
 ```
 
-### Query building for CRUD operations
+### CRUD operations
 
 The `github.com/muhlemmer/pbpgx/crud` sub-package provides query building, execution and scanning for common CRUD operations. (Create, Read, Update and Delete).
 This allows to easily integrate your database models with protocol buffers and derived RPC implementations, for all basic operations.
 Argument and return types are typically of `proto.Message`, where applicable, again eliminating the need of adaptor code.
 Also the use of generic type arguments and `protoreflect` ensures a maintainable, consice, code base.
-Re-used buffers and stored alloaction lenghts cut down on the amount of allocations required during query building, thus making the query builder very performant:
-
-```
-Benchmark_insertQuery-16    	 1944303	      1079 ns/op	     208 B/op	       3 allocs/op
-Benchmark_selectQuery-16    	 2034650	       671.1 ns/op	     128 B/op	       2 allocs/op
-Benchmark_updateQuery-16    	 1217715	      1316 ns/op	     224 B/op	       3 allocs/op
-Benchmark_deleteQuery-16    	 2811507	       660.9 ns/op	     128 B/op	       2 allocs/op
-```
 
 #### Usage
 
@@ -121,7 +113,7 @@ message ProductCreateQuery {
 In our implementation code we reate a `Table` once, which takes care of query builder re-use:
 
 ```
-tab := crud.NewTable("public", "products", nil)
+tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", nil)
 ```
 
 We can use the `id` and `columns` from an incomming query to read a single message,
@@ -133,7 +125,7 @@ query := &gen.ProductQuery{
     Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
 }
 
-result, err := crud.ReadOne[*gen.Product](ctx, conn, tab, query.Id, query.Columns)
+record, err := tab.ReadOne(ctx, conn, query.Id, query.Columns)
 if err != nil {
     panic(err)
 }
@@ -155,13 +147,27 @@ query := &gen.ProductCreateQuery{
     },
 }
 
-result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, query.GetData(), query.GetColumns())
+record, err := tab.CreateReturnOne(ctx, conn, query.GetData(), query.GetColumns())
 if err != nil {
     panic(err)
 }
 ```
 
 Likewise, there are the `CreateOne`, `DeleteOne` and `UpdateOne` functions (only write) with `Return` variants for returning the affected record (write and read).
+
+### Query building
+
+The `crud` package is build on the `github.com/muhlemmer/pbpgx/query` sub-package. The building blocks for query building are exported, so that package consumers can use them to build custom queries.
+The `query` package uses a `sync.Pool` for efficient memory re-use.
+The builder's capacity is stored and on the next use, the same capacity is allocated in order to reduce the amount off allocations needed during building.
+This results in a fairly efficient builder:
+
+```
+BenchmarkBuilder_Insert-16    	 2152771	       777.3 ns/op	     224 B/op	       2 allocs/op
+BenchmarkBuilder_Select-16    	 2806689	       498.1 ns/op	      96 B/op	       1 allocs/op
+BenchmarkBuilder_Update-16    	 1252780	       932.2 ns/op	     224 B/op	       2 allocs/op
+BenchmarkBuilder_Delete-16    	 2889320	       455.2 ns/op	      80 B/op	       1 allocs/op
+```
 
 ## License
 

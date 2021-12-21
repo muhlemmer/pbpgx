@@ -25,6 +25,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
+	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,44 +33,45 @@ import (
 // Each field value will be set to a corresponding column,
 // matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
-func UpdateOne(ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, data proto.Message) (pgconn.CommandTag, error) {
-	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), ColumnWildcard, true)
-	defer q.release()
-	go tab.bufLens.updateOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message) (pgconn.CommandTag, error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	args, err := q.parseArgs(data, 1)
+	fieldNames := b.Update(tab.schema, tab.table, data, query.WhereID[Col], nil, true)
+
+	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
-		return nil, fmt.Errorf("crud.UpdateOne: %w", err)
+		return nil, fmt.Errorf("crud.CreateOne: %w", err)
 	}
 	args = append(args, id)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	return x.Exec(ctx, q.String(), args...)
+	return x.Exec(ctx, b.String(), args...)
 }
 
 // UpdateReturnOne updates one record in a Table, identified by id, with the contents of the data Message
-// and returns the result in a message of type M.
+// and returns the result in a message of type Record.
 // Each field value in req will be set to a corresponding column,
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
 //
-// The returned message will have the fields set as named by columns.
+// The returned message will have the fields set as named by returnColumns.
 // If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
 // returning all available columns in the table.
-// All returned columns must be present as field names in M.
-// See scan for more details.
-func UpdateReturnOne[M proto.Message, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, id interface{}, data proto.Message, columns []Col) (msg M, err error) {
-	q := updateQuery(tab, data, tab.bufLens.updateOne.get(), columns, true)
-	defer q.release()
-	go tab.bufLens.updateOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) UpdateReturnOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message, returnColumns []Col) (msg Record, err error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	args, err := q.parseArgs(data, 1)
+	fieldNames := b.Update(tab.schema, tab.table, data, query.WhereID[Col], returnColumns, true)
+
+	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
-		return msg, fmt.Errorf("crud.UpdateOne: %w", err)
+		var m Record
+		return m, fmt.Errorf("crud.CreateOne: %w", err)
 	}
 	args = append(args, id)
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), args...)
+	return pbpgx.QueryRow[Record](ctx, x, b.String(), args...)
 }

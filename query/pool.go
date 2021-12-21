@@ -17,40 +17,27 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package crud
+package query
 
-import (
-	"testing"
+import "sync"
 
-	"github.com/muhlemmer/stringx"
-)
-
-func Test_whereID(t *testing.T) {
-	q := &query{
-		Builder: new(stringx.Builder),
-		argPos:  2,
-	}
-
-	whereID(q)
-
-	const want = " WHERE \"id\" = $3"
-
-	if got := q.String(); got != want {
-		t.Errorf("whereID = %s, want %s", got, want)
-	}
+// Pool utilizes a sync.Pool for efficient re-use of Builders.
+type Pool[Col ColName] struct {
+	pool sync.Pool
 }
 
-func Test_whereIDInFunc(t *testing.T) {
-	q := &query{
-		Builder: new(stringx.Builder),
-		argPos:  2,
+// Put a Builder to the pool, resetting its state.
+func (p *Pool[Col]) Put(b *Builder[Col]) {
+	b.Reset()
+	p.pool.Put(b)
+}
+
+// Get a Builder from the Pool, growing it to the previous capacity.
+func (p *Pool[Col]) Get() *Builder[Col] {
+	if b, ok := p.pool.Get().(*Builder[Col]); ok {
+		b.Grow(b.lastCap)
+		return b
 	}
 
-	whereIDInFunc(3)(q)
-
-	const want = " WHERE \"id\" IN ($3, $4, $5)"
-
-	if got := q.String(); got != want {
-		t.Errorf("whereID = %s, want %s", got, want)
-	}
+	return new(Builder[Col])
 }

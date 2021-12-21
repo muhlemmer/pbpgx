@@ -32,8 +32,6 @@ import (
 )
 
 func TestDeleteOne(t *testing.T) {
-	tab := NewTable("", "simple_ro", ColumnDefault{"id": Zero})
-
 	tests := []struct {
 		name string
 		data proto.Message
@@ -58,7 +56,7 @@ func TestDeleteOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			_, err = DeleteOne(testlib.CTX, tx, tab, 5)
+			_, err = simpleRoTab.DeleteOne(testlib.CTX, tx, 5)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -72,8 +70,6 @@ func TestDeleteOne(t *testing.T) {
 }
 
 func TestDeleteReturnOne(t *testing.T) {
-	tab := NewTable("", "simple_ro", ColumnDefault{"id": Zero})
-
 	tests := []struct {
 		name  string
 		query *support.SimpleQuery
@@ -119,7 +115,7 @@ func TestDeleteReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := DeleteReturnOne[*support.Simple](testlib.CTX, tx, tab, tt.query.Id, tt.query.Columns)
+			got, err := simpleRoTab.DeleteReturnOne(testlib.CTX, tx, tt.query.Id, tt.query.Columns)
 			if err != nil {
 				t.Fatal(err)
 			}

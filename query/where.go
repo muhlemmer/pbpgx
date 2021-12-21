@@ -17,20 +17,26 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package crud
+package query
 
-type whereFunc func(q *query)
+// WhereFunc are callback functions that writes
+// the "WHERE" clause to a query.
+type WhereFunc[Col ColName] func(b *Builder[Col])
 
-func whereID(q *query) {
-	q.WriteString(" WHERE \"id\" = ")
-	q.writePosArgs(1)
+// Where ID writes a where clause in the form:
+//   WHERE "id" = $1
+func WhereID[Col ColName](b *Builder[Col]) {
+	b.WriteString(" WHERE \"id\" = ")
+	b.WritePosArgs(1)
 }
 
-func whereIDInFunc(n int) whereFunc {
-	return func(q *query) {
-		q.WriteString(" WHERE \"id\" IN ")
-		q.WriteByte('(')
-		q.writePosArgs(n)
-		q.WriteByte(')')
+// WhereIDInFunc returns a function which writes a where clause in the form:
+//   WHERE "id" IN $1, $2, $N...
+func WhereIDInFunc[Col ColName](n int) WhereFunc[Col] {
+	return func(b *Builder[Col]) {
+		b.WriteString(" WHERE \"id\" IN ")
+		b.WriteByte('(')
+		b.WritePosArgs(n)
+		b.WriteByte(')')
 	}
 }

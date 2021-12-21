@@ -31,8 +31,6 @@ import (
 )
 
 func TestCreateReturnOne(t *testing.T) {
-	tab := NewTable("", "simple_rw", ColumnDefault{"id": Zero})
-
 	tests := []struct {
 		name    string
 		req     proto.Message
@@ -74,7 +72,7 @@ func TestCreateReturnOne(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateReturnOne[*support.Simple](testlib.CTX, testlib.ConnPool, tab, tt.req, tt.retCols)
+			got, err := simpleRwTab.CreateReturnOne(testlib.CTX, testlib.ConnPool, tt.req, tt.retCols)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -87,8 +85,6 @@ func TestCreateReturnOne(t *testing.T) {
 }
 
 func TestCreateOne(t *testing.T) {
-	tab := NewTable("", "simple_rw", ColumnDefault{"id": Zero})
-
 	tests := []struct {
 		name    string
 		req     proto.Message
@@ -128,7 +124,7 @@ func TestCreateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			_, err = CreateOne(testlib.CTX, testlib.ConnPool, tab, tt.req)
+			_, err = simpleRwTab.CreateOne(testlib.CTX, testlib.ConnPool, tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
 				return

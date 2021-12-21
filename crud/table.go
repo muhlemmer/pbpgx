@@ -20,92 +20,40 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
-	"sync"
+	"constraints"
 
-	"github.com/jackc/pgtype"
-	"github.com/muhlemmer/stringx"
+	"github.com/muhlemmer/pbpgx/query"
+	"google.golang.org/protobuf/proto"
 )
 
-type bufLenCache struct {
-	mu sync.RWMutex
-	n  int
-}
-
-func (c *bufLenCache) setHigher(n int) {
-	c.mu.Lock()
-	if n > c.n {
-		c.n = n
-	}
-	c.mu.Unlock()
-}
-
-func (c *bufLenCache) get() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.n
-}
-
-type OnEmpty int
-
-const (
-	Null OnEmpty = iota // On empty field, set value to Null in the database.
-	Zero                // On empty field, set value to its zero value.
-)
-
-func (o OnEmpty) pgStatus() pgtype.Status {
-	if o == Zero {
-		return pgtype.Present
-	}
-
-	return pgtype.Null
-}
-
-// ColumnDefault defines the default status of a column value.
-// This affects the write behaviour of emtpy fields during Create (INSERT) and Update (UPDATE) calls.
-type ColumnDefault map[string]OnEmpty
-
-// Table is a re-usable and concurrency safe object for query building.
+// Table is a re-usable and concurrency safe object for CRUD operations.
 // It holds reference to a table name, optional with schema
 // and optimizes repeated query building for all supported CRUD functions in this package.
-type Table struct {
-	schema  string
-	table   string
-	onEmpty ColumnDefault
-
-	pool sync.Pool
-
-	bufLens struct {
-		createOne bufLenCache
-		read      bufLenCache
-		updateOne bufLenCache
-		deleteOne bufLenCache
-	}
+type Table[Col query.ColName, Record proto.Message, ID constraints.Ordered] struct {
+	schema string
+	table  string
+	cd     query.ColumnDefault
+	pool   query.Pool[Col]
 }
 
 // NewTable returns a newly allocated table.
-// Schema may be an empty string, in which case it will be ommitted from all queries built with this table.
-// onEmpty specifies the behaviour when finding empty fields during data writes of multiple records.
+// Schema may be an empty string, in which case it will be ommitted from all queries built for this table.
+// ColumnDefault specifies the behaviour when finding empty fields during data writes of multiple records.
 // (protocol buffers does not have the notion of Null).
 // Single record writes always ommit empty fields and ignore the onEmpty setting.
-func NewTable(schema, table string, onEmpty ColumnDefault) *Table {
-	return &Table{
-		schema:  schema,
-		table:   table,
-		onEmpty: onEmpty,
-	}
-}
-
-func (tab *Table) newQuery(size int) *query {
-	b, ok := tab.pool.Get().(*stringx.Builder)
-	if !ok {
-		b = new(stringx.Builder)
-	}
-
-	b.Grow(size)
-
-	return &query{
-		Builder: b,
-		tab:     tab,
+//
+// The Col type parameter is typically an entry of a protocol buffers enum with columns names. (must implement the String() method).
+// The Record type parameter should be a protocol buffer message representing the databae schema.
+// Column names must match with field names, case sensitive.
+// It is recommended to define a field for each column, for usage with the wildcard operator '*'.
+// It is safe to have more fields than columns, the surplus will be ignored.
+// See pbpgx.Scan for details.
+// The ID type parameter should match the type used in "id" column of the table,
+// used to match a single row in Read, Update and Delete.
+func NewTable[Col query.ColName, Record proto.Message, ID constraints.Ordered](schema, table string, cd query.ColumnDefault) *Table[Col, Record, ID] {
+	return &Table[Col, Record, ID]{
+		schema: schema,
+		table:  table,
+		cd:     cd,
 	}
 }

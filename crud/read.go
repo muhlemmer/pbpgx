@@ -20,54 +20,50 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
-	"constraints"
 	"context"
 
 	"github.com/muhlemmer/pbpgx"
-	"google.golang.org/protobuf/proto"
+	"github.com/muhlemmer/pbpgx/query"
 )
 
 // ReadOne record from a table, identified by id.
-// The returned message will be of type M,
+// The returned message will be of type Record,
 // with the fields corresponding to columns populated.
 // If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
 // returning all available columns in the table.
-// All columns must be present as field names in M.
-// See scan for more details.
-func ReadOne[M proto.Message, ID any, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, id ID, columns []Col) (M, error) {
-	q := selectQuery(tab, columns, tab.bufLens.read.n, whereID, 1)
-	defer q.release()
-	go tab.bufLens.createOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (Record, error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	return pbpgx.QueryRow[M](ctx, x, q.String(), id)
+	b.Select(tab.schema, tab.table, columns, query.WhereID[Col], 1)
+
+	return pbpgx.QueryRow[Record](ctx, x, b.String(), id)
 }
 
 // ReadAll records up to limit from a table.
-// The returned messages will be a slice of type M,
+// The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
 // If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
 // returning all available columns in the table.
-// All columns must be present as field names in M.
-// See scan for more details.
-func ReadAll[M proto.Message, I constraints.Integer, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, limit I, columns []Col) ([]M, error) {
-	q := selectQuery(tab, columns, tab.bufLens.read.n, nil, limit)
-	defer q.release()
-	go tab.bufLens.createOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor, limit int64, columns []Col) ([]Record, error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	return pbpgx.Query[M](ctx, x, q.String())
+	b.Select(tab.schema, tab.table, columns, nil, limit)
+
+	return pbpgx.Query[Record](ctx, x, b.String())
 }
 
 // ReadList returns a list of records from a table, identified by ids.
-// The returned messages will be a slice of type M,
+// The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
 // If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
 // returning all available columns in the table.
-// All columns must be present as field names in M.
-// See scan for more details.
-func ReadList[M proto.Message, ID any, Col ColName](ctx context.Context, x pbpgx.Executor, tab *Table, ids []ID, columns ...Col) ([]M, error) {
-	q := selectQuery(tab, columns, tab.bufLens.read.n, whereIDInFunc(len(ids)), 0)
-	defer q.release()
-	go tab.bufLens.createOne.setHigher(q.Len())
+func (tab *Table[Col, Record, ID]) ReadList(ctx context.Context, x pbpgx.Executor, ids []ID, columns []Col) ([]Record, error) {
+	b := tab.pool.Get()
+	defer tab.pool.Put(b)
+
+	b.Select(tab.schema, tab.table, columns, query.WhereIDInFunc[Col](len(ids)), 0)
 
 	args := make([]interface{}, len(ids))
 
@@ -75,5 +71,5 @@ func ReadList[M proto.Message, ID any, Col ColName](ctx context.Context, x pbpgx
 		args[i] = id
 	}
 
-	return pbpgx.Query[M](ctx, x, q.String(), args...)
+	return pbpgx.Query[Record](ctx, x, b.String(), args...)
 }

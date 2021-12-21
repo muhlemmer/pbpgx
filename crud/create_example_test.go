@@ -30,8 +30,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func ExampleCreateReturnOne() {
-	tab := crud.NewTable("public", "products", nil)
+func ExampleTable_CreateReturnOne() {
+	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", nil)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
@@ -54,12 +54,12 @@ func ExampleCreateReturnOne() {
 		},
 	}
 
-	result, err := crud.CreateReturnOne[*gen.Product](ctx, conn, tab, query.GetData(), query.GetColumns())
+	record, err := tab.CreateReturnOne(ctx, conn, query.GetData(), query.GetColumns())
 	if err != nil {
 		panic(err)
 	}
 
-	out, _ := protojson.Marshal(result)
+	out, _ := protojson.Marshal(record)
 	fmt.Println(string(out))
 
 	// {"title":"two","price":10.45}
