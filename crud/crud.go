@@ -21,3 +21,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // It is capable of effeciently building queries based on incomming protocol buffer messages,
 // and returning results as protocol buffer messages, using protoreflect and generics.
 package crud
+
+import (
+	"context"
+
+	"github.com/jackc/pgconn"
+	"github.com/muhlemmer/pbpgx"
+)
+
+type Preparator interface {
+	pbpgx.Executor
+	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
+}

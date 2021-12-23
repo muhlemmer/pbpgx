@@ -30,3 +30,17 @@ insert into products (id, title, price) values
     (3, 'three', null),
     (4, 'four', 100),
     (5, 'five', 0.90);
+
+create table unsupported (
+    bl boolean[],
+    i32 integer[],
+    i64 bigint[],
+    f float[],
+    d real[],
+    s text[],
+    bt bytea[],
+    u32 integer[],
+    u64 bigint[],
+    sup bytea,
+    ts timetz
+);

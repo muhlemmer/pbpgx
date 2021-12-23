@@ -21,12 +21,15 @@ package crud
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
+	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -72,7 +75,16 @@ func TestCreateReturnOne(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := simpleRwTab.CreateReturnOne(testlib.CTX, testlib.ConnPool, tt.req, tt.retCols)
+			ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
+			defer cancel()
+
+			tx, err := testlib.ConnPool.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback(ctx)
+
+			got, err := simpleRwTab.CreateReturnOne(ctx, tx, tt.req, tt.retCols)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -124,7 +136,7 @@ func TestCreateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			_, err = simpleRwTab.CreateOne(testlib.CTX, testlib.ConnPool, tt.req)
+			_, err = simpleRwTab.CreateOne(ctx, tx, tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -142,5 +154,122 @@ func TestCreateOne(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestTable_Create(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []proto.Message
+		want    []pgconn.CommandTag
+		wantErr bool
+	}{
+		{
+			"no action",
+			nil,
+			nil,
+			false,
+		},
+		{
+			"all fields",
+			[]proto.Message{
+				&support.Simple{
+					Id:    911,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				&support.Simple{
+					Id:    912,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				&support.Simple{
+					Id:    913,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+			},
+			[]pgconn.CommandTag{
+				[]byte("INSERT 0 1"),
+				[]byte("INSERT 0 1"),
+				[]byte("INSERT 0 1"),
+			},
+			false,
+		},
+		{
+			"column mismatch error",
+			[]proto.Message{
+				&support.Supported{},
+			},
+			nil,
+			true,
+		},
+		{
+			"conflict error",
+			[]proto.Message{
+				&support.Simple{
+					Id:    911,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				&support.Simple{
+					Id:    911,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+			},
+			[]pgconn.CommandTag{
+				[]byte("INSERT 0 1"),
+			},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
+			defer cancel()
+
+			tx, err := testlib.ConnPool.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback(ctx)
+
+			got, err := simpleRwTab.Create(ctx, tx, tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Create() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTable_Create_unsupported(t *testing.T) {
+	tab := NewTable[query.ColName, *support.Unsupported, int32]("public", "unsupported", nil)
+
+	ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
+	defer cancel()
+
+	tx, err := testlib.ConnPool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+
+	data := []proto.Message{
+		&support.Unsupported{
+			Bl: []bool{true},
+		},
+	}
+
+	_, err = tab.Create(ctx, tx, data)
+	if err == nil {
+		t.Errorf("Create() error = %v, wantErr %v", err, true)
+		return
 	}
 }
