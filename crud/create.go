@@ -75,6 +75,15 @@ func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Execut
 //
 // If any returnColumns are specified, the returned records will have the fields set as named by returnColumns.
 // If no returnColumns, the returned slice will always be nil.
+//
+// Note: Although it is allowed to pass a connection pool as Executor,
+// it is recommended to pass a Conn or Tx type.
+// Create executes the same INSERT query for every entry in Data,
+// And a connection pool does not reuse statements.
+// If the connection is set up in "simple" mode, this function will likely have bad performance.
+// Furthermore, this function makes no assumptions on transactional requirements of the call.
+// Meaning that on error a part of the data may be inserted and will not be rolled back.
+// It is the responsibilty of the caller to Begin and Rollback in case this is required.
 func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor, data []proto.Message, returnColumns ...Col) (records []Record, err error) {
 	if len(data) == 0 {
 		return nil, nil

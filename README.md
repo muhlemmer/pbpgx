@@ -147,13 +147,13 @@ query := &gen.ProductCreateQuery{
     },
 }
 
-record, err := tab.CreateReturnOne(ctx, conn, query.GetData(), query.GetColumns())
+record, err := tab.CreateOne(ctx, conn, query.GetData(), query.GetColumns())
 if err != nil {
     panic(err)
 }
 ```
 
-Likewise, there are the `CreateOne`, `DeleteOne` and `UpdateOne` functions (only write) with `Return` variants for returning the affected record (write and read).
+Likewise, there are the `CreateOne`, `DeleteOne` and `UpdateOne` functions.
 
 ### Query building
 
