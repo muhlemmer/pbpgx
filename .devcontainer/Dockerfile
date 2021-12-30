@@ -1,5 +1,4 @@
-FROM golang:latest
-
+FROM golang:1.18-rc
 
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -25,14 +24,6 @@ ARG GID=1000
 
 RUN groupadd -g ${GID} ${GROUP}
 RUN useradd -m -g ${GID} -s /bin/bash ${USER}
-
-WORKDIR /master
-RUN git clone --depth 1 https://github.com/golang/go.git
-WORKDIR /master/go/src
-RUN ./make.bash
-
-ENV PATH "/master/go/bin:${PATH}"
-RUN echo "PATH=${PATH}" >> /etc/bash.bashrc
 
 USER ${USER}
 RUN go install github.com/cweill/gotests/gotests@latest && \

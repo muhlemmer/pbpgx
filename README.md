@@ -10,7 +10,7 @@ Pbpgx supports the Protocol Buffer types generated in your project, through prot
 It is build on the pgx PostgreSQL driver toolkit for Go, for richer SQL type support.
 Thefore pbpgx is targetting developers which are building protcol buffers based APIs against a PostgreSQL database.
 
-This package is currently a WIP and is written against the current `golang/go:master` branch with type parameter support and
+This package is currently a WIP and is written against Go version 1.18-beta1 with type parameter support and
 will support Go version 1.18 upward.
 
 ## Features
