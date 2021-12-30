@@ -21,28 +21,39 @@ package crud
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
 	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
-func TestCreateReturnOne(t *testing.T) {
+func TestTable_CreateOne(t *testing.T) {
 	tests := []struct {
 		name    string
+		ctx     context.Context
 		req     proto.Message
 		retCols []support.SimpleColumns
 		want    proto.Message
 		wantErr bool
 	}{
 		{
+			"all fields, no return",
+			testlib.CTX,
+			&support.Simple{
+				Id:    789,
+				Title: "foo bar",
+				Data:  "Hello World!",
+			},
+			nil,
+			(*support.Simple)(nil),
+			false,
+		},
+		{
 			"all fields",
+			testlib.CTX,
 			&support.Simple{
 				Id:    789,
 				Title: "foo bar",
@@ -62,12 +73,25 @@ func TestCreateReturnOne(t *testing.T) {
 		},
 		{
 			"unsupported error",
+			testlib.CTX,
 			&support.Unsupported{Bl: []bool{true, false}},
 			[]support.SimpleColumns{
 				support.SimpleColumns_id,
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
 			},
+			(*support.Simple)(nil),
+			true,
+		},
+		{
+			"context error",
+			testlib.ECTX,
+			&support.Simple{
+				Id:    789,
+				Title: "foo bar",
+				Data:  "Hello World!",
+			},
+			nil,
 			(*support.Simple)(nil),
 			true,
 		},
@@ -84,75 +108,14 @@ func TestCreateReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRwTab.CreateReturnOne(ctx, tx, tt.req, tt.retCols)
+			got, err := simpleRwTab.CreateOne(tt.ctx, tx, tt.req, tt.retCols)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Table.CreateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !proto.Equal(got, tt.want) {
-				t.Errorf("CreateReturnOne() = %v, want %v", got, tt.want)
+				t.Errorf("Table.CreateReturnOne() = %v, want %v", got, tt.want)
 			}
-		})
-	}
-}
-
-func TestCreateOne(t *testing.T) {
-	tests := []struct {
-		name    string
-		req     proto.Message
-		want    *support.Simple
-		wantErr bool
-	}{
-		{
-			"all fields",
-			&support.Simple{
-				Id:    991,
-				Title: "foo bar",
-				Data:  "Hello World!",
-			},
-			&support.Simple{
-				Id:    991,
-				Title: "foo bar",
-				Data:  "Hello World!",
-			},
-			false,
-		},
-		{
-			"unsupported error",
-			&support.Unsupported{Bl: []bool{true, false}},
-			nil,
-			true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
-			defer cancel()
-
-			tx, err := testlib.ConnPool.Begin(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer tx.Rollback(ctx)
-
-			_, err = simpleRwTab.CreateOne(ctx, tx, tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateReturnOne() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
-				got, err := pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_rw" where id = $1;`, tt.req.(*support.Simple).Id)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if !proto.Equal(got, tt.want) {
-					t.Errorf("CreateReturnOne() = %v, want %v", got, tt.want)
-				}
-			}
-
 		})
 	}
 }
@@ -161,17 +124,19 @@ func TestTable_Create(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []proto.Message
-		want    []pgconn.CommandTag
+		retCols []support.SimpleColumns
+		want    []*support.Simple
 		wantErr bool
 	}{
 		{
 			"no action",
 			nil,
 			nil,
+			nil,
 			false,
 		},
 		{
-			"all fields",
+			"all fields, no return",
 			[]proto.Message{
 				&support.Simple{
 					Id:    911,
@@ -189,10 +154,42 @@ func TestTable_Create(t *testing.T) {
 					Data:  "Hello World!",
 				},
 			},
-			[]pgconn.CommandTag{
-				[]byte("INSERT 0 1"),
-				[]byte("INSERT 0 1"),
-				[]byte("INSERT 0 1"),
+			nil,
+			nil,
+			false,
+		},
+		{
+			"all fields, return id",
+			[]proto.Message{
+				&support.Simple{
+					Id:    911,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				&support.Simple{
+					Id:    912,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+				&support.Simple{
+					Id:    913,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+			},
+			[]support.SimpleColumns{
+				support.SimpleColumns_id,
+			},
+			[]*support.Simple{
+				{
+					Id: 911,
+				},
+				{
+					Id: 912,
+				},
+				{
+					Id: 913,
+				},
 			},
 			false,
 		},
@@ -202,10 +199,11 @@ func TestTable_Create(t *testing.T) {
 				&support.Supported{},
 			},
 			nil,
+			nil,
 			true,
 		},
 		{
-			"conflict error",
+			"conflict error, return all",
 			[]proto.Message{
 				&support.Simple{
 					Id:    911,
@@ -218,9 +216,27 @@ func TestTable_Create(t *testing.T) {
 					Data:  "Hello World!",
 				},
 			},
-			[]pgconn.CommandTag{
-				[]byte("INSERT 0 1"),
+			[]support.SimpleColumns{
+				support.SimpleColumns_id,
+				support.SimpleColumns_data,
+				support.SimpleColumns_title,
 			},
+			[]*support.Simple{
+				{
+					Id:    911,
+					Title: "foo bar",
+					Data:  "Hello World!",
+				},
+			},
+			true,
+		},
+		{
+			"unsupported error",
+			[]proto.Message{
+				&support.Unsupported{Bl: []bool{true, false}},
+			},
+			nil,
+			nil,
 			true,
 		},
 	}
@@ -236,14 +252,20 @@ func TestTable_Create(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRwTab.Create(ctx, tx, tt.data)
+			got, err := simpleRwTab.Create(ctx, tx, tt.data, tt.retCols...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Create() = %v, want %v", got, tt.want)
+			if len(got) != len(tt.want) {
+				t.Fatalf("Create() = %v, want %v", got, tt.want)
+			}
+
+			for i, want := range tt.want {
+				if !proto.Equal(got[i], want) {
+					t.Errorf("Create() = %v, want %v", got[i], want)
+				}
 			}
 		})
 	}

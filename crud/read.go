@@ -26,50 +26,37 @@ import (
 	"github.com/muhlemmer/pbpgx/query"
 )
 
-// ReadOne record from a table, identified by id.
-// The returned message will be of type Record,
-// with the fields corresponding to columns populated.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
-func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (Record, error) {
+func (tab *Table[Col, Record, ID]) selectQuery(columns []Col, wf query.WhereFunc[Col], limit int64) string {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	b.Select(tab.schema, tab.table, columns, query.WhereID[Col], 1)
+	b.Select(tab.schema, tab.table, columns, wf, limit)
+	return b.String()
+}
 
-	return pbpgx.QueryRow[Record](ctx, x, b.String(), id)
+// ReadOne record from a table, identified by id.
+// The returned message will be of type Record,
+// with the fields corresponding to columns populated.
+func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (Record, error) {
+	return pbpgx.QueryRow[Record](ctx, x, tab.selectQuery(columns, query.WhereID[Col], 1), id)
 }
 
 // ReadAll records up to limit from a table.
 // The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
 func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor, limit int64, columns []Col) ([]Record, error) {
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	b.Select(tab.schema, tab.table, columns, nil, limit)
-
-	return pbpgx.Query[Record](ctx, x, b.String())
+	return pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, nil, limit))
 }
 
 // ReadList returns a list of records from a table, identified by ids.
 // The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
 func (tab *Table[Col, Record, ID]) ReadList(ctx context.Context, x pbpgx.Executor, ids []ID, columns []Col) ([]Record, error) {
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	b.Select(tab.schema, tab.table, columns, query.WhereIDInFunc[Col](len(ids)), 0)
-
 	args := make([]interface{}, len(ids))
 
 	for i, id := range ids {
 		args[i] = id
 	}
 
-	return pbpgx.Query[Record](ctx, x, b.String(), args...)
+	return pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, query.WhereIDInFunc[Col](len(ids)), 0), args...)
 }

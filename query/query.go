@@ -93,13 +93,7 @@ var noColumns = ([]ColName)(nil)
 
 // WriteColumnSpec writes the column specifier to the query.
 // All column names are doube-quoted and comma seperated.
-// If the length of the columns slice is 0, the wildcard specifier '*'
-// will be writte to the query.
 func (b *Builder[Col]) WriteColumnSpec(columns []Col) {
-	if len(columns) == 0 {
-		b.WriteByte('*')
-	}
-
 	for i, col := range columns {
 		if i != 0 {
 			b.WriteString(", ")
@@ -109,14 +103,11 @@ func (b *Builder[Col]) WriteColumnSpec(columns []Col) {
 }
 
 // WriteReturnClause writes a RETURNING clause with a column spec.
-// If columns is nil, no return clause is written.
-// If columns is not nil, but lenght is 0, the wildcard specifier '*'
-// will be written.
-// See Builder.WriteColumnSpec.
+// If columns has zero length, nothing will be written (no-op).
 func (b *Builder[Col]) WriteReturnClause(columns []Col) {
 	const returning = " RETURNING "
 
-	if columns != nil {
+	if len(columns) > 0 {
 		b.WriteString(returning)
 		b.WriteColumnSpec(columns)
 	}

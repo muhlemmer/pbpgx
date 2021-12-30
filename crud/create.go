@@ -22,96 +22,96 @@ package crud
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
-// CreateOne record in a Table, with the contents of the req Message.
-// Each field value in data will be set to a corresponding column,
-// matching on the protobuf fieldname, case sensitive.
-// Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
-func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message) (pgconn.CommandTag, error) {
+func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames []string) {
 	b := tab.pool.Get()
-	defer tab.pool.Put(b)
 
-	fieldNames := b.Insert(tab.schema, tab.table, data, nil, true)
+	fieldNames = b.Insert(tab.schema, tab.table, data, returnColumns, skipEmpty)
+	qs = b.String()
 
-	args, err := query.ParseArgs(data, fieldNames, tab.cd)
-	if err != nil {
-		return nil, fmt.Errorf("crud.CreateOne: %w", err)
-	}
+	tab.pool.Put(b)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	return x.Exec(ctx, b.String(), args...)
+	return qs, fieldNames
 }
 
-// CreateReturnOne creates one record in a Table, with the contents of data
+// CreateOne creates one record in a Table, with the contents of data
 // and returns the result in a message of type Record.
 // Each field value in data will be set to a corresponding column,
 // matching on the procobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
 //
-// The returned message will have the fields set as identified by returnColumns.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
-func (tab *Table[Col, Record, ID]) CreateReturnOne(ctx context.Context, x pbpgx.Executor, data proto.Message, returnColumns []Col) (m Record, err error) {
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	fieldNames := b.Insert(tab.schema, tab.table, data, returnColumns, true)
+// If any returnColumns are specified, the returned record will have the fields set as named by returnColumns.
+// If no returnColumns, the returned record will always be nil.
+func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message, returnColumns []Col) (record Record, err error) {
+	qs, fieldNames := tab.insertQuery(data, true, returnColumns...)
 
 	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
-		var m Record
-		return m, fmt.Errorf("crud.CreateOne: %w", err)
+		return record, fmt.Errorf("Table %s CreateOne: %w", tab.name(), err)
 	}
 
-	return pbpgx.QueryRow[Record](ctx, x, b.String(), args...)
+	if len(returnColumns) > 0 {
+		record, err = pbpgx.QueryRow[Record](ctx, x, qs, args...)
+	} else {
+		_, err = x.Exec(ctx, qs, args...)
+	}
+
+	if err != nil {
+		return record, fmt.Errorf("Table %s CreateOne: %w", tab.name(), err)
+	}
+
+	return
 }
 
 // Create one or more records in a Table, with the contents of the req Message.
 // Each field value in data will be set to a corresponding column,
 // matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
-func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x Preparator, data []proto.Message) ([]pgconn.CommandTag, error) {
+//
+// If any returnColumns are specified, the returned records will have the fields set as named by returnColumns.
+// If no returnColumns, the returned slice will always be nil.
+func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor, data []proto.Message, returnColumns ...Col) (records []Record, err error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	fieldNames := b.Insert(tab.schema, tab.table, data[0], nil, false)
+	qs, fieldNames := tab.insertQuery(data[0], true, returnColumns...)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	sd, err := x.Prepare(ctx, strings.Join([]string{"CreateMany", tab.schema, tab.table}, "-"), b.String())
-	if err != nil {
-		return nil, fmt.Errorf("crud.CreateMany: %w", err)
+	if len(returnColumns) > 0 {
+		records = make([]Record, 0, len(data))
 	}
-
-	tags := make([]pgconn.CommandTag, 0, len(data))
 
 	for i, m := range data {
 		args, err := query.ParseArgs(m, fieldNames, tab.cd)
 		if err != nil {
-			return tags, fmt.Errorf("crud.CreateMany[%d]: %w", i, err)
+			return records, fmt.Errorf("Table %s Create[%d]: %w", tab.name(), i, err)
 		}
 
-		tag, err := x.Exec(ctx, sd.Name, args...)
+		var record Record
+
+		if len(returnColumns) > 0 {
+			record, err = pbpgx.QueryRow[Record](ctx, x, qs, args...)
+		} else {
+			_, err = x.Exec(ctx, qs, args...)
+		}
+
 		if err != nil {
-			return tags, fmt.Errorf("crud.CreateMany[%d]: %w", i, err)
+			return records, fmt.Errorf("Table %s Create[%d]: %w", tab.name(), i, err)
 		}
 
-		tags = append(tags, tag)
+		if len(returnColumns) > 0 {
+			records = append(records, record)
+		}
+
 	}
 
-	return tags, nil
+	return records, nil
 }

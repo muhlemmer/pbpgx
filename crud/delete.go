@@ -21,36 +21,37 @@ package crud
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/query"
 )
 
-// DeleteOne record from a Table, identified by id.
-func (tab *Table[Col, Record, ID]) DeleteOne(ctx context.Context, x pbpgx.Executor, id ID) (pgconn.CommandTag, error) {
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	b.Delete(tab.schema, tab.table, query.WhereID[Col], nil)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	return x.Exec(ctx, b.String(), id)
-}
-
-// DeleteOne record from a Table, identified by id.
-// Returns the deleted record in a message of type M.
-//
-// The returned message will have the fields set named by returnColumns.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
-func (tab *Table[Col, Record, ID]) DeleteReturnOne(ctx context.Context, x pbpgx.Executor, id ID, returnColumns []Col) (Record, error) {
+func (tab *Table[Col, Record, ID]) deleteQuery(wf query.WhereFunc[Col], returnColumns ...Col) string {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
 	b.Delete(tab.schema, tab.table, query.WhereID[Col], returnColumns)
+	return b.String()
+}
 
-	return pbpgx.QueryRow[Record](ctx, x, b.String(), id)
+// DeleteOne record from a Table, identified by id.
+// Returns the deleted record in a message of type Record.
+//
+// If any returnColumns are specified, the returned message will have the fields set as named by returnColumns.
+// If no returnColumns, the returned message will always be nil.
+func (tab *Table[Col, Record, ID]) DeleteOne(ctx context.Context, x pbpgx.Executor, id ID, returnColumns ...Col) (record Record, err error) {
+	qs := tab.deleteQuery(query.WhereID[Col], returnColumns...)
+
+	if len(returnColumns) > 0 {
+		record, err = pbpgx.QueryRow[Record](ctx, x, qs, id)
+	} else {
+		_, err = x.Exec(ctx, qs, id)
+	}
+
+	if err != nil {
+		return record, fmt.Errorf("Table %s DeleteOne: %w", tab.name(), err)
+	}
+
+	return record, nil
 }

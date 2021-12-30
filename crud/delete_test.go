@@ -24,57 +24,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
 	"google.golang.org/protobuf/proto"
 )
 
-func TestDeleteOne(t *testing.T) {
+func TestTable_DeleteOne(t *testing.T) {
 	tests := []struct {
-		name string
-		data proto.Message
+		name    string
+		query   *support.SimpleQuery
+		want    *support.Simple
+		wantErr bool
 	}{
 		{
-			"update title",
-			&support.Simple{Title: "five-and-halve"},
+			"No return",
+			&support.SimpleQuery{
+				Id: 5,
+			},
+			nil,
+			false,
 		},
-		{
-			"update title and data",
-			&support.Simple{Title: "five-and-halve", Data: "history"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
-			defer cancel()
-
-			tx, err := testlib.ConnPool.Begin(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer tx.Rollback(ctx)
-
-			_, err = simpleRoTab.DeleteOne(testlib.CTX, tx, 5)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			_, err = pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_ro" where id = $1;`, 5)
-			if err != pgx.ErrNoRows {
-				t.Errorf("DeleteOne() err = %v want %v", err, pgx.ErrNoRows)
-			}
-		})
-	}
-}
-
-func TestDeleteReturnOne(t *testing.T) {
-	tests := []struct {
-		name  string
-		query *support.SimpleQuery
-		want  *support.Simple
-	}{
 		{
 			"return all",
 			&support.SimpleQuery{
@@ -90,6 +59,7 @@ func TestDeleteReturnOne(t *testing.T) {
 				Title: "five",
 				Data:  "five is a four letter word",
 			},
+			false,
 		},
 		{
 			"return ID",
@@ -102,6 +72,18 @@ func TestDeleteReturnOne(t *testing.T) {
 			&support.Simple{
 				Id: 5,
 			},
+			false,
+		},
+		{
+			"no row error",
+			&support.SimpleQuery{
+				Id: 99,
+				Columns: []support.SimpleColumns{
+					support.SimpleColumns_id,
+				},
+			},
+			nil,
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -115,12 +97,12 @@ func TestDeleteReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRoTab.DeleteReturnOne(testlib.CTX, tx, tt.query.Id, tt.query.Columns)
-			if err != nil {
-				t.Fatal(err)
+			got, err := simpleRoTab.DeleteOne(testlib.CTX, tx, tt.query.Id, tt.query.Columns...)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Table.DeleteOne() err = %v wantErr: %v", err, tt.wantErr)
 			}
 			if !proto.Equal(got, tt.want) {
-				t.Errorf("UpdateReturnOne() =\n%v\nwant\n%v", got, tt.want)
+				t.Errorf("Table.DeleteOne() =\n%v\nwant\n%v", got, tt.want)
 			}
 		})
 	}

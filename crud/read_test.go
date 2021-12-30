@@ -27,23 +27,27 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestReadOne(t *testing.T) {
+func TestTable_ReadOne(t *testing.T) {
 	want := &support.Simple{
 		Id:    5,
 		Title: "five",
 		Data:  "five is a four letter word",
 	}
 
-	got, err := simpleRoTab.ReadOne(testlib.CTX, testlib.ConnPool, 5, []support.SimpleColumns{})
+	got, err := simpleRoTab.ReadOne(testlib.CTX, testlib.ConnPool, 5, []support.SimpleColumns{
+		support.SimpleColumns_id,
+		support.SimpleColumns_data,
+		support.SimpleColumns_title,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !proto.Equal(got, want) {
-		t.Errorf("ReadOne() = %v, want %v", got, want)
+		t.Errorf("Table.ReadOne() = %v, want %v", got, want)
 	}
 }
 
-func TestReadAll(t *testing.T) {
+func TestTable_ReadAll(t *testing.T) {
 	cols := []support.SimpleColumns{
 		support.SimpleColumns_title,
 		support.SimpleColumns_data,
@@ -72,17 +76,17 @@ func TestReadAll(t *testing.T) {
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("ReadAll() =\n%v\nwant\n%v", got, want)
+		t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got, want)
 	}
 
 	for i, w := range want {
 		if !proto.Equal(got[i], w) {
-			t.Fatalf("ReadAll() =\n%v\nwant\n%v", got[i], w)
+			t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got[i], w)
 		}
 	}
 }
 
-func TestReadList(t *testing.T) {
+func TestTable_ReadList(t *testing.T) {
 	ids := []int32{1, 4, 5}
 
 	cols := []support.SimpleColumns{
@@ -111,12 +115,12 @@ func TestReadList(t *testing.T) {
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("ReadList() =\n%v\nwant\n%v", got, want)
+		t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got, want)
 	}
 
 	for i, w := range want {
 		if !proto.Equal(got[i], w) {
-			t.Fatalf("ReadList() =\n%v\nwant\n%v", got[i], w)
+			t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got[i], w)
 		}
 	}
 }

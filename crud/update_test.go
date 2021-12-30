@@ -24,80 +24,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
 	"google.golang.org/protobuf/proto"
 )
 
-func TestUpdateOne(t *testing.T) {
-	tests := []struct {
-		name    string
-		data    proto.Message
-		want    *support.Simple
-		wantErr bool
-	}{
-		{
-			"update title",
-			&support.Simple{Title: "five-and-halve"},
-			&support.Simple{
-				Id:    5,
-				Title: "five-and-halve",
-				Data:  "five is a four letter word",
-			},
-			false,
-		},
-		{
-			"update title and data",
-			&support.Simple{Title: "five-and-halve", Data: "history"},
-			&support.Simple{
-				Id:    5,
-				Title: "five-and-halve",
-				Data:  "history",
-			},
-			false,
-		},
-		{
-			"unsupported",
-			&support.Unsupported{Bl: []bool{true, false}},
-			nil,
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(testlib.CTX, time.Second)
-			defer cancel()
-
-			tx, err := testlib.ConnPool.Begin(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer tx.Rollback(ctx)
-
-			_, err = simpleRoTab.UpdateOne(testlib.CTX, tx, 5, tt.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if tt.wantErr {
-				return
-			}
-
-			got, err := pbpgx.QueryRow[*support.Simple](ctx, tx, `select * from "simple_ro" where id = $1;`, 5)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if !proto.Equal(got, tt.want) {
-				t.Errorf("UpdateOne() =\n%v\nwant\n%v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestUpdateReturnOne(t *testing.T) {
+func TestTable_UpdateOne(t *testing.T) {
 	type args struct {
 		query *support.SimpleQuery
 		data  proto.Message
@@ -165,7 +97,18 @@ func TestUpdateReturnOne(t *testing.T) {
 			false,
 		},
 		{
-			"update title, return ID",
+			"update title, no return",
+			args{
+				&support.SimpleQuery{
+					Id: 5,
+				},
+				&support.Simple{Title: "five-and-halve"},
+			},
+			nil,
+			false,
+		},
+		{
+			"unsupported error",
 			args{
 				&support.SimpleQuery{
 					Id: 5,
@@ -174,6 +117,17 @@ func TestUpdateReturnOne(t *testing.T) {
 					},
 				},
 				&support.Unsupported{Bl: []bool{true, false}},
+			},
+			nil,
+			true,
+		},
+		{
+			"update id, dup error",
+			args{
+				&support.SimpleQuery{
+					Id: 5,
+				},
+				&support.Simple{Id: 4},
 			},
 			nil,
 			true,
@@ -190,14 +144,14 @@ func TestUpdateReturnOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRoTab.UpdateReturnOne(testlib.CTX, tx, tt.args.query.GetId(), tt.args.data, tt.args.query.GetColumns())
+			got, err := simpleRoTab.UpdateOne(testlib.CTX, tx, tt.args.query.GetId(), tt.args.data, tt.args.query.GetColumns()...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Table.UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if !proto.Equal(got, tt.want) {
-				t.Errorf("UpdateReturnOne() =\n%v\nwant\n%v", got, tt.want)
+				t.Errorf("Table.UpdateOne() =\n%v\nwant\n%v", got, tt.want)
 			}
 		})
 	}

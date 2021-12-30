@@ -125,11 +125,6 @@ func TestBuilder_WriteReturnClause(t *testing.T) {
 			``,
 		},
 		{
-			"wildcard",
-			[]ColName{},
-			` RETURNING *`,
-		},
-		{
 			"one column",
 			[]ColName{
 				support.SimpleColumns_id,
@@ -204,21 +199,6 @@ func TestBuilder_Insert(t *testing.T) {
 			[]string{"id", "title"},
 		},
 		{
-			"with schema, no skip empty, return wildcard",
-			args{
-				schema: "public",
-				table:  "simple",
-				msg: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
-				returnColumns: []ColName{},
-				skipEmpty:     false,
-			},
-			`INSERT INTO "public"."simple" ("id", "title", "data") VALUES ($1, $2, $3) RETURNING *;`,
-			[]string{"id", "title", "data"},
-		},
-		{
 			"with schema, no skip empty, exclude id, return all",
 			args{
 				schema: "public",
@@ -268,16 +248,6 @@ func TestBuilder_Select(t *testing.T) {
 		args args
 		want string
 	}{
-		{
-			"no schema, select one, nil columns",
-			args{
-				table:   "simple",
-				columns: ColumnWildcard,
-				wf:      WhereID[ColName],
-				limit:   1,
-			},
-			`SELECT * FROM "simple" WHERE "id" = $1 LIMIT 1;`,
-		},
 		{
 			"select one, with columns",
 			args{
@@ -383,22 +353,6 @@ func TestBuilder_Update(t *testing.T) {
 			`UPDATE "public"."simple" SET "id" = $1, "title" = $2 WHERE "id" = $3 RETURNING "id", "title", "data";`,
 			[]string{"id", "title"},
 		},
-		{
-			"with schema, no skip empty, return wildcard",
-			args{
-				schema: "public",
-				table:  "simple",
-				data: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
-				wf:            WhereID[ColName],
-				returnColumns: ColumnWildcard,
-				skipEmpty:     false,
-			},
-			`UPDATE "public"."simple" SET "id" = $1, "title" = $2, "data" = $3 WHERE "id" = $4 RETURNING *;`,
-			[]string{"id", "title", "data"},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -436,16 +390,6 @@ func TestBuilder_Delete(t *testing.T) {
 				wf:     WhereID[ColName],
 			},
 			`DELETE FROM "simple" WHERE "id" = $1;`,
-		},
-		{
-			"with schema, return wildcard",
-			args{
-				schema:        "public",
-				table:         "simple",
-				wf:            WhereID[ColName],
-				returnColumns: ColumnWildcard,
-			},
-			`DELETE FROM "public"."simple" WHERE "id" = $1 RETURNING *;`,
 		},
 		{
 			"with schema, return all",

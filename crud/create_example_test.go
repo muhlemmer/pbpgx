@@ -30,7 +30,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func ExampleTable_CreateReturnOne() {
+func ExampleTable_CreateOne() {
 	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", nil)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
@@ -54,7 +54,7 @@ func ExampleTable_CreateReturnOne() {
 		},
 	}
 
-	record, err := tab.CreateReturnOne(ctx, conn, query.GetData(), query.GetColumns())
+	record, err := tab.CreateOne(ctx, conn, query.GetData(), query.GetColumns())
 	if err != nil {
 		panic(err)
 	}

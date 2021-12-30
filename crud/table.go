@@ -57,3 +57,10 @@ func NewTable[Col query.ColName, Record proto.Message, ID constraints.Ordered](s
 		cd:     cd,
 	}
 }
+
+func (tab *Table[Col, Record, ID]) name() string {
+	var b query.Builder[Col]
+	b.WriteIdentifier(tab.schema, tab.table)
+
+	return b.String()
+}

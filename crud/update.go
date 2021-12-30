@@ -23,55 +23,48 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgconn"
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
-// UpdateOne record in a table, identified by id, with the contents of the data Message.
-// Each field value will be set to a corresponding column,
-// matching on the protobuf fieldname, case sensitive.
-// Empty fields are omitted from the query and will not be modified.
-func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message) (pgconn.CommandTag, error) {
+func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, fieldNames []string) {
 	b := tab.pool.Get()
-	defer tab.pool.Put(b)
 
-	fieldNames := b.Update(tab.schema, tab.table, data, query.WhereID[Col], nil, true)
+	fieldNames = b.Update(tab.schema, tab.table, data, wf, returnColumns, skipEmpty)
+	qs = b.String()
 
-	args, err := query.ParseArgs(data, fieldNames, tab.cd)
-	if err != nil {
-		return nil, fmt.Errorf("crud.CreateOne: %w", err)
-	}
-	args = append(args, id)
+	tab.pool.Put(b)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	return x.Exec(ctx, b.String(), args...)
+	return qs, fieldNames
 }
 
-// UpdateReturnOne updates one record in a Table, identified by id, with the contents of the data Message
+// UpdateOne updates one record in a Table, identified by id, with the contents of the data Message
 // and returns the result in a message of type Record.
-// Each field value in req will be set to a corresponding column,
-// matching on the procobuf fieldname, case sensitive.
+// Each field value in data will be set to a corresponding column,
+// matching on the protobuf fieldname, case sensitive.
 // Empty fields are omitted from the query and will not be modified.
 //
-// The returned message will have the fields set as named by returnColumns.
-// If the length of columns is 0, the wildcard operator '*' is passed as columns spec to the database,
-// returning all available columns in the table.
-func (tab *Table[Col, Record, ID]) UpdateReturnOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message, returnColumns []Col) (msg Record, err error) {
-	b := tab.pool.Get()
-	defer tab.pool.Put(b)
-
-	fieldNames := b.Update(tab.schema, tab.table, data, query.WhereID[Col], returnColumns, true)
+// If any returnColumns are specified, the returned message will have the fields set as named by returnColumns.
+// If no returnColumns, the returned message will always be nil.
+func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message, returnColumns ...Col) (record Record, err error) {
+	qs, fieldNames := tab.updateQuery(data, query.WhereID[Col], true, returnColumns...)
 
 	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
-		var m Record
-		return m, fmt.Errorf("crud.CreateOne: %w", err)
+		return record, fmt.Errorf("crud.CreateOne: %w", err)
 	}
 	args = append(args, id)
 
-	return pbpgx.QueryRow[Record](ctx, x, b.String(), args...)
+	if len(returnColumns) > 0 {
+		record, err = pbpgx.QueryRow[Record](ctx, x, qs, args...)
+	} else {
+		_, err = x.Exec(ctx, qs, args...)
+	}
+
+	if err != nil {
+		return record, fmt.Errorf("Table %s UpdateOne: %w", tab.name(), err)
+	}
+
+	return record, err
 }
