@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
+	"context"
 	"testing"
 
 	"github.com/muhlemmer/pbpgx/internal/support"
@@ -28,99 +29,162 @@ import (
 )
 
 func TestTable_ReadOne(t *testing.T) {
-	want := &support.Simple{
-		Id:    5,
-		Title: "five",
-		Data:  "five is a four letter word",
+	tests := []struct {
+		name    string
+		id      int32
+		want    *support.Simple
+		wantErr bool
+	}{
+		{
+			"not found",
+			99,
+			nil,
+			true,
+		},
+		{
+			"success",
+			5,
+			&support.Simple{
+				Id:    5,
+				Title: "five",
+				Data:  "five is a four letter word",
+			},
+			false,
+		},
 	}
 
-	got, err := simpleRoTab.ReadOne(testlib.CTX, testlib.ConnPool, 5, []support.SimpleColumns{
-		support.SimpleColumns_id,
-		support.SimpleColumns_data,
-		support.SimpleColumns_title,
-	})
-	if err != nil {
-		t.Fatal(err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := simpleRoTab.ReadOne(testlib.CTX, testlib.ConnPool, tt.id, []support.SimpleColumns{
+				support.SimpleColumns_id,
+				support.SimpleColumns_data,
+				support.SimpleColumns_title,
+			})
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Table.ReadOne() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !proto.Equal(got, tt.want) {
+				t.Errorf("Table.ReadOne() = %v, want %v", got, tt.want)
+			}
+		})
 	}
-	if !proto.Equal(got, want) {
-		t.Errorf("Table.ReadOne() = %v, want %v", got, want)
-	}
+
 }
 
 func TestTable_ReadAll(t *testing.T) {
-	cols := []support.SimpleColumns{
-		support.SimpleColumns_title,
-		support.SimpleColumns_data,
-	}
-
-	want := []*support.Simple{
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		want    []*support.Simple
+		wantErr bool
+	}{
 		{
-			Title: "one",
-			Data:  "foo bar",
+			"context error",
+			testlib.ECTX,
+			nil,
+			true,
 		},
 		{
-			Title: "two",
-		},
-		{
-			Data: "golden triangle",
-		},
-		{
-			Title: "four",
-			Data:  "hello world",
+			"success",
+			testlib.CTX,
+			[]*support.Simple{
+				{
+					Title: "one",
+					Data:  "foo bar",
+				},
+				{
+					Title: "two",
+				},
+				{
+					Data: "golden triangle",
+				},
+				{
+					Title: "four",
+					Data:  "hello world",
+				},
+			},
+			false,
 		},
 	}
 
-	got, err := simpleRoTab.ReadAll(testlib.CTX, testlib.ConnPool, 4, cols)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := simpleRoTab.ReadAll(tt.ctx, testlib.ConnPool, 4, []support.SimpleColumns{
+				support.SimpleColumns_title,
+				support.SimpleColumns_data,
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Table.ReadAll() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-	if len(got) != len(want) {
-		t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got, want)
-	}
+			if len(got) != len(tt.want) {
+				t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got, tt.want)
+			}
 
-	for i, w := range want {
-		if !proto.Equal(got[i], w) {
-			t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got[i], w)
-		}
+			for i, want := range tt.want {
+				if !proto.Equal(got[i], want) {
+					t.Fatalf("Table.ReadAll() =\n%v\nwant\n%v", got[i], want)
+				}
+			}
+		})
 	}
 }
 
 func TestTable_ReadList(t *testing.T) {
-	ids := []int32{1, 4, 5}
-
-	cols := []support.SimpleColumns{
-		support.SimpleColumns_title,
-		support.SimpleColumns_data,
-	}
-
-	want := []*support.Simple{
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		want    []*support.Simple
+		wantErr bool
+	}{
 		{
-			Title: "one",
-			Data:  "foo bar",
+			"context error",
+			testlib.ECTX,
+			nil,
+			true,
 		},
 		{
-			Title: "four",
-			Data:  "hello world",
+			"success",
+			testlib.CTX,
+			[]*support.Simple{
+				{
+					Title: "one",
+					Data:  "foo bar",
+				},
+				{
+					Title: "four",
+					Data:  "hello world",
+				},
+				{
+					Title: "five",
+					Data:  "five is a four letter word",
+				},
+			},
+			false,
 		},
-		{
-			Title: "five",
-			Data:  "five is a four letter word",
-		},
 	}
 
-	got, err := simpleRoTab.ReadList(testlib.CTX, testlib.ConnPool, ids, cols)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := simpleRoTab.ReadList(tt.ctx, testlib.ConnPool, []int32{1, 4, 5}, []support.SimpleColumns{
+				support.SimpleColumns_title,
+				support.SimpleColumns_data,
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Table.ReadList() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-	if len(got) != len(want) {
-		t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got, want)
-	}
+			if len(got) != len(tt.want) {
+				t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got, tt.want)
+			}
 
-	for i, w := range want {
-		if !proto.Equal(got[i], w) {
-			t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got[i], w)
-		}
+			for i, want := range tt.want {
+				if !proto.Equal(got[i], want) {
+					t.Fatalf("Table.ReadList() =\n%v\nwant\n%v", got[i], want)
+				}
+			}
+		})
 	}
 }

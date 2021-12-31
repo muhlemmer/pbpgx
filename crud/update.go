@@ -52,7 +52,7 @@ func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Execut
 
 	args, err := query.ParseArgs(data, fieldNames, tab.cd)
 	if err != nil {
-		return record, fmt.Errorf("crud.CreateOne: %w", err)
+		return record, fmt.Errorf("Table %s UpdateOne: %w", tab.name(), err)
 	}
 	args = append(args, id)
 

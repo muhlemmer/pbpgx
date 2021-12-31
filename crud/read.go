@@ -21,6 +21,7 @@ package crud
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/query"
@@ -37,15 +38,25 @@ func (tab *Table[Col, Record, ID]) selectQuery(columns []Col, wf query.WhereFunc
 // ReadOne record from a table, identified by id.
 // The returned message will be of type Record,
 // with the fields corresponding to columns populated.
-func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (Record, error) {
-	return pbpgx.QueryRow[Record](ctx, x, tab.selectQuery(columns, query.WhereID[Col], 1), id)
+func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (record Record, err error) {
+	record, err = pbpgx.QueryRow[Record](ctx, x, tab.selectQuery(columns, query.WhereID[Col], 1), id)
+	if err != nil {
+		return record, fmt.Errorf("Table %s ReadOne: %w", tab.name(), err)
+	}
+
+	return record, nil
 }
 
 // ReadAll records up to limit from a table.
 // The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
 func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor, limit int64, columns []Col) ([]Record, error) {
-	return pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, nil, limit))
+	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, nil, limit))
+	if err != nil {
+		return nil, fmt.Errorf("Table %s ReadAll: %w", tab.name(), err)
+	}
+
+	return records, nil
 }
 
 // ReadList returns a list of records from a table, identified by ids.
@@ -58,5 +69,10 @@ func (tab *Table[Col, Record, ID]) ReadList(ctx context.Context, x pbpgx.Executo
 		args[i] = id
 	}
 
-	return pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, query.WhereIDInFunc[Col](len(ids)), 0), args...)
+	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, query.WhereIDInFunc[Col](len(ids)), 0), args...)
+	if err != nil {
+		return nil, fmt.Errorf("Table %s ReadList: %w", tab.name(), err)
+	}
+
+	return records, nil
 }
