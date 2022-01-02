@@ -24,7 +24,6 @@ import (
 	"strconv"
 
 	"github.com/muhlemmer/stringx"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -82,15 +81,6 @@ func (b *Builder[Col]) WritePosArgs(n int) {
 	}
 }
 
-// ColumnWildcard results in the selection of all available columns in a table.
-// It only needs to be used when a return message is required, but the query does
-// not cary column information.
-// Note that, when selecting by wildcard, the requested return type must carry
-// all fields as named by the table columns, returned by the query.
-var ColumnWildcard = []ColName{}
-
-var noColumns = ([]ColName)(nil)
-
 // WriteColumnSpec writes the column specifier to the query.
 // All column names are doube-quoted and comma seperated.
 func (b *Builder[Col]) WriteColumnSpec(columns []Col) {
@@ -116,31 +106,27 @@ func (b *Builder[Col]) WriteReturnClause(columns []Col) {
 // Insert builds an insert query.
 // See WriteReturnClause on when and how the RETURNING clause is written.
 //   INSERT INTO "public"."simple_rw" ("id", "title") VALUES ($1, $2) RETURNING "id";
-func (b *Builder[Col]) Insert(schema, table string, msg proto.Message, returnColumns []Col, skipEmpty bool, exclude ...string) (fieldNames []string) {
+func (b *Builder[Col]) Insert(schema, table string, insertColumns FieldNames, returnColumns ...Col) {
 	const (
 		insertInto = "INSERT INTO "
 		values     = " VALUES "
 	)
 
-	fieldNames = ParseFields(msg, skipEmpty, exclude...)
-
 	b.WriteString(insertInto)
 	b.WriteIdentifier(schema, table)
 
 	b.WriteString(" (")
-	b.WriteEnclosedElements(fieldNames, columnSep, stringx.DoubleQuotes)
+	b.WriteEnclosedElements(insertColumns, columnSep, stringx.DoubleQuotes)
 	b.WriteByte(')')
 
 	b.WriteString(values)
 	b.WriteByte('(')
-	b.WritePosArgs(len(fieldNames))
+	b.WritePosArgs(len(insertColumns))
 	b.WriteByte(')')
 
 	b.WriteReturnClause(returnColumns)
 
 	b.WriteByte(';')
-
-	return fieldNames
 }
 
 // Select builds a select query.
@@ -177,20 +163,18 @@ func (b *Builder[Col]) Select(schema, table string, columns []Col, wf WhereFunc[
 // WARNING: a nil WhereFunc will result in updates of all records in a table!
 // See WriteReturnClause on when and how the RETURNING clause is written.
 //   UPDATE "public"."simple" SET "title" = $1, "data" = $2 WHERE "id" = $3 RETURNING ("title", "data");
-func (b *Builder[Col]) Update(schema, table string, data proto.Message, wf WhereFunc[Col], returnColumns []Col, skipEmpty bool, exclude ...string) (fieldNames []string) {
+func (b *Builder[Col]) Update(schema, table string, updateColumns FieldNames, wf WhereFunc[Col], returnColumns ...Col) {
 	const (
 		update = "UPDATE "
 		set    = " SET "
 	)
-
-	fieldNames = ParseFields(data, skipEmpty, exclude...)
 
 	b.WriteString(update)
 	b.WriteIdentifier(schema, table)
 
 	b.WriteString(set)
 
-	for i, name := range fieldNames {
+	for i, name := range updateColumns {
 		if i != 0 {
 			b.WriteString(", ")
 		}
@@ -207,7 +191,6 @@ func (b *Builder[Col]) Update(schema, table string, data proto.Message, wf Where
 	b.WriteReturnClause(returnColumns)
 	b.WriteByte(';')
 
-	return fieldNames
 }
 
 // Delete builds a delete query.
@@ -215,7 +198,7 @@ func (b *Builder[Col]) Update(schema, table string, data proto.Message, wf Where
 // WARNING: a nil WhereFunc will result in deletion of all records in a table!
 // See WriteReturnClause on when and how the RETURNING clause is written.
 //   DELETE FROM "public"."simple" WHERE "id" = $1 RETURNING ("id, "title", "data");
-func (b *Builder[Col]) Delete(schema, table string, wf WhereFunc[Col], returnColumns []Col) {
+func (b *Builder[Col]) Delete(schema, table string, wf WhereFunc[Col], returnColumns ...Col) {
 	const (
 		delete = "DELETE"
 	)

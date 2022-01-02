@@ -23,39 +23,31 @@ import (
 	"testing"
 
 	"github.com/muhlemmer/pbpgx/internal/support"
-	"google.golang.org/protobuf/proto"
 )
 
 func BenchmarkBuilder_Insert(b *testing.B) {
 	type args struct {
 		schema, table string
-		msg           proto.Message
+		insertColumns FieldNames
 		returnColumns []ColName
-		skipEmpty     bool
-		exclude       []string
 	}
 
 	a := args{
-		schema: "public",
-		table:  "simple",
-		msg: &support.Simple{
-			Id:    31,
-			Title: "foo bar",
-		},
+		schema:        "public",
+		table:         "simple",
+		insertColumns: FieldNames{"title", "data"},
 		returnColumns: []ColName{
 			support.SimpleColumns_id,
 			support.SimpleColumns_title,
 			support.SimpleColumns_data,
 		},
-		skipEmpty: false,
-		exclude:   []string{"id"},
 	}
 
 	var bldr Builder[ColName]
 
 	for i := 0; i < b.N; i++ {
 		bldr.Grow(bldr.lastCap)
-		bldr.Insert(a.schema, a.table, a.msg, a.returnColumns, a.skipEmpty, a.exclude...)
+		bldr.Insert(a.schema, a.table, a.insertColumns, a.returnColumns...)
 		bldr.Reset()
 	}
 }
@@ -91,35 +83,28 @@ func BenchmarkBuilder_Select(b *testing.B) {
 func BenchmarkBuilder_Update(b *testing.B) {
 	type args struct {
 		schema, table string
-		data          proto.Message
 		wf            WhereFunc[ColName]
+		updateColumns FieldNames
 		returnColumns []ColName
-		skipEmpty     bool
-		exclude       []string
 	}
 
 	a := args{
-		schema: "public",
-		table:  "simple",
-		data: &support.Simple{
-			Id:    31,
-			Title: "foo bar",
-		},
-		wf: WhereID[ColName],
+		schema:        "public",
+		table:         "simple",
+		updateColumns: FieldNames{"id", "title"},
+		wf:            WhereID[ColName],
 		returnColumns: []ColName{
 			support.SimpleColumns_id,
 			support.SimpleColumns_title,
 			support.SimpleColumns_data,
 		},
-		skipEmpty: false,
-		exclude:   []string{"id"},
 	}
 
 	var bldr Builder[ColName]
 
 	for i := 0; i < b.N; i++ {
 		bldr.Grow(bldr.lastCap)
-		bldr.Insert(a.schema, a.table, a.data, a.returnColumns, a.skipEmpty, a.exclude...)
+		bldr.Insert(a.schema, a.table, a.updateColumns, a.returnColumns...)
 		bldr.Reset()
 	}
 }
@@ -145,7 +130,7 @@ func BenchmarkBuilder_Delete(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		bldr.Grow(bldr.lastCap)
-		bldr.Delete(a.schema, a.table, a.wf, a.returnColumns)
+		bldr.Delete(a.schema, a.table, a.wf, a.returnColumns...)
 		bldr.Reset()
 	}
 }

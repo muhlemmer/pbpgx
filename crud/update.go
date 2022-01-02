@@ -28,15 +28,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, fieldNames []string) {
+func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, fieldNames query.FieldNames) {
 	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	fieldNames = b.Update(tab.schema, tab.table, data, wf, returnColumns, skipEmpty)
-	qs = b.String()
+	fieldNames = query.ParseFields(data, skipEmpty)
+	b.Update(tab.schema, tab.table, fieldNames, wf, returnColumns...)
 
-	tab.pool.Put(b)
-
-	return qs, fieldNames
+	return b.String(), fieldNames
 }
 
 // UpdateOne updates one record in a Table, identified by id, with the contents of the data Message
@@ -50,7 +49,7 @@ func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.Wher
 func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message, returnColumns ...Col) (record Record, err error) {
 	qs, fieldNames := tab.updateQuery(data, query.WhereID[Col], true, returnColumns...)
 
-	args, err := query.ParseArgs(data, fieldNames, tab.cd)
+	args, err := fieldNames.ParseArgs(data, tab.cd)
 	if err != nil {
 		return record, fmt.Errorf("Table %s UpdateOne: %w", tab.name(), err)
 	}

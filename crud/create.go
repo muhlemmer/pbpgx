@@ -28,15 +28,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames []string) {
+func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames query.FieldNames) {
 	b := tab.pool.Get()
+	defer tab.pool.Put(b)
 
-	fieldNames = b.Insert(tab.schema, tab.table, data, returnColumns, skipEmpty)
-	qs = b.String()
+	fieldNames = query.ParseFields(data, skipEmpty)
+	b.Insert(tab.schema, tab.table, fieldNames, returnColumns...)
 
-	tab.pool.Put(b)
-
-	return qs, fieldNames
+	return b.String(), fieldNames
 }
 
 // CreateOne creates one record in a Table, with the contents of data
@@ -50,7 +49,7 @@ func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty boo
 func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message, returnColumns []Col) (record Record, err error) {
 	qs, fieldNames := tab.insertQuery(data, true, returnColumns...)
 
-	args, err := query.ParseArgs(data, fieldNames, tab.cd)
+	args, err := fieldNames.ParseArgs(data, tab.cd)
 	if err != nil {
 		return record, fmt.Errorf("Table %s CreateOne: %w", tab.name(), err)
 	}
@@ -99,7 +98,7 @@ func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor,
 	}
 
 	for i, m := range data {
-		args, err := query.ParseArgs(m, fieldNames, tab.cd)
+		args, err := fieldNames.ParseArgs(m, tab.cd)
 		if err != nil {
 			return records, fmt.Errorf("Table %s Create[%d]: %w", tab.name(), i, err)
 		}

@@ -163,10 +163,10 @@ The builder's capacity is stored and on the next use, the same capacity is alloc
 This results in a fairly efficient builder:
 
 ```
-BenchmarkBuilder_Insert-16    	 2152771	       777.3 ns/op	     224 B/op	       2 allocs/op
-BenchmarkBuilder_Select-16    	 2806689	       498.1 ns/op	      96 B/op	       1 allocs/op
-BenchmarkBuilder_Update-16    	 1252780	       932.2 ns/op	     224 B/op	       2 allocs/op
-BenchmarkBuilder_Delete-16    	 2889320	       455.2 ns/op	      80 B/op	       1 allocs/op
+BenchmarkBuilder_Insert-16    	 5989922	       477.7 ns/op	     192 B/op	       1 allocs/op
+BenchmarkBuilder_Select-16    	 2476291	       405.9 ns/op	      96 B/op	       1 allocs/op
+BenchmarkBuilder_Update-16    	 3126738	       555.4 ns/op	     192 B/op	       1 allocs/op
+BenchmarkBuilder_Delete-16    	 4884342	       303.8 ns/op	      80 B/op	       1 allocs/op
 ```
 
 ## License

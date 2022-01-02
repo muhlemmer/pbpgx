@@ -28,34 +28,25 @@ import (
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// FieldNames expresses proto.Message field names for use as column specifiers.
+type FieldNames []string
+
 // ParseFields returns a slice of field names from the passed proto message.
-// Optionaly, empty (zero-value) fields can be skipped,
-// as well fields with names from the exlude list.
+// Optionaly, empty (zero-value) fields can be skipped.
 // Note that names are case sensitive, as defined in the proto file, not the Go struct field names.
-func ParseFields(msg proto.Message, skipEmpty bool, exclude ...string) (fieldNames []string) {
-	exMap := make(map[string]struct{}, len(exclude))
-
-	for _, s := range exclude {
-		exMap[s] = struct{}{}
-	}
-
+func ParseFields(msg proto.Message, skipEmpty bool) (fieldNames FieldNames) {
 	rm := msg.ProtoReflect()
 	fields := rm.Descriptor().Fields()
-	l := fields.Len()
 
-	fieldNames = make([]string, 0, l-len(exclude))
+	fieldNames = make([]string, 0, fields.Len())
 
-	for i := 0; i < l; i++ {
+	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
 		if skipEmpty && !rm.Has(fd) {
 			continue
 		}
 
-		name := string(fd.Name())
-
-		if _, ok := exMap[name]; !ok {
-			fieldNames = append(fieldNames, name)
-		}
+		fieldNames = append(fieldNames, string(fd.Name()))
 	}
 
 	return fieldNames
@@ -84,7 +75,7 @@ type ColumnDefault map[string]OnEmpty
 // The returned args contains pgtype values for efficient encoding.
 // Empty fields will be set as `Null` by default, unless when set to `Zero`
 // in the passed ColumnDefault. ColumnDefault may be nil.
-func ParseArgs(msg proto.Message, fieldNames []string, cd ColumnDefault) (args []interface{}, err error) {
+func (fieldNames FieldNames) ParseArgs(msg proto.Message, cd ColumnDefault) (args []interface{}, err error) {
 	rm := msg.ProtoReflect()
 	fields := rm.Descriptor().Fields()
 

@@ -20,11 +20,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package query
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/muhlemmer/pbpgx/internal/support"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestBuilder_Reset(t *testing.T) {
@@ -156,77 +154,54 @@ func TestBuilder_WriteReturnClause(t *testing.T) {
 func TestBuilder_Insert(t *testing.T) {
 	type args struct {
 		schema, table string
-		msg           proto.Message
+		insertColumns FieldNames
 		returnColumns []ColName
-		skipEmpty     bool
-		exclude       []string
 	}
 	tests := []struct {
-		name           string
-		args           args
-		want           string
-		wantFieldNames []string
+		name string
+		args args
+		want string
 	}{
 		{
-			"no schema, skip empty, no return",
+			"no schema, no return",
 			args{
-				schema: "",
-				table:  "simple",
-				msg: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
-				skipEmpty: true,
+				schema:        "",
+				table:         "simple",
+				insertColumns: FieldNames{"id", "title"},
 			},
 			`INSERT INTO "simple" ("id", "title") VALUES ($1, $2);`,
-			[]string{"id", "title"},
 		},
 		{
-			"with schema, skip empty, return id",
+			"with schema, return id",
 			args{
-				schema: "public",
-				table:  "simple",
-				msg: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
+				schema:        "public",
+				table:         "simple",
+				insertColumns: FieldNames{"id", "title"},
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
 				},
-				skipEmpty: true,
 			},
 			`INSERT INTO "public"."simple" ("id", "title") VALUES ($1, $2) RETURNING "id";`,
-			[]string{"id", "title"},
 		},
 		{
-			"with schema, no skip empty, exclude id, return all",
+			"with schema, return all",
 			args{
-				schema: "public",
-				table:  "simple",
-				msg: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
+				schema:        "public",
+				table:         "simple",
+				insertColumns: FieldNames{"title", "data"},
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
-				skipEmpty: false,
-				exclude:   []string{"id"},
 			},
 			`INSERT INTO "public"."simple" ("title", "data") VALUES ($1, $2) RETURNING "id", "title", "data";`,
-			[]string{"title", "data"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &Builder[ColName]{}
-			fieldNames := b.Insert(tt.args.schema, tt.args.table, tt.args.msg, tt.args.returnColumns, tt.args.skipEmpty, tt.args.exclude...)
-
-			if !reflect.DeepEqual(fieldNames, tt.wantFieldNames) {
-				t.Errorf("Builder.Insert() fieldNames =\n%s\nwant\n%s", fieldNames, tt.wantFieldNames)
-			}
+			b.Insert(tt.args.schema, tt.args.table, tt.args.insertColumns, tt.args.returnColumns...)
 
 			if got := b.String(); got != tt.want {
 				t.Errorf("Builder.Insert() =\n%s\nwant\n%s", got, tt.want)
@@ -306,11 +281,9 @@ func TestBuilder_Select(t *testing.T) {
 func TestBuilder_Update(t *testing.T) {
 	type args struct {
 		schema, table string
-		data          proto.Message
 		wf            WhereFunc[ColName]
+		updateColumns FieldNames
 		returnColumns []ColName
-		skipEmpty     bool
-		exclude       []string
 	}
 	tests := []struct {
 		name           string
@@ -319,36 +292,28 @@ func TestBuilder_Update(t *testing.T) {
 		wantFieldNames []string
 	}{
 		{
-			"no schema, skip empty, no return",
+			"no schema, no return",
 			args{
-				schema: "",
-				table:  "simple",
-				data: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
-				wf:        WhereID[ColName],
-				skipEmpty: true,
+				schema:        "",
+				table:         "simple",
+				updateColumns: FieldNames{"title"},
+				wf:            WhereID[ColName],
 			},
-			`UPDATE "simple" SET "id" = $1, "title" = $2 WHERE "id" = $3;`,
+			`UPDATE "simple" SET "title" = $1 WHERE "id" = $2;`,
 			[]string{"id", "title"},
 		},
 		{
-			"with schema, skip empty, return all",
+			"with schema, return all",
 			args{
-				schema: "public",
-				table:  "simple",
-				data: &support.Simple{
-					Id:    31,
-					Title: "foo bar",
-				},
-				wf: WhereID[ColName],
+				schema:        "public",
+				table:         "simple",
+				updateColumns: FieldNames{"id", "title"},
+				wf:            WhereID[ColName],
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
-				skipEmpty: true,
 			},
 			`UPDATE "public"."simple" SET "id" = $1, "title" = $2 WHERE "id" = $3 RETURNING "id", "title", "data";`,
 			[]string{"id", "title"},
@@ -357,11 +322,7 @@ func TestBuilder_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &Builder[ColName]{}
-			fieldNames := b.Update(tt.args.schema, tt.args.table, tt.args.data, tt.args.wf, tt.args.returnColumns, tt.args.skipEmpty)
-
-			if !reflect.DeepEqual(fieldNames, tt.wantFieldNames) {
-				t.Errorf("Builder.Update() fieldNames =\n%s\nwant\n%s", fieldNames, tt.wantFieldNames)
-			}
+			b.Update(tt.args.schema, tt.args.table, tt.args.updateColumns, tt.args.wf, tt.args.returnColumns...)
 
 			if got := b.String(); got != tt.want {
 				t.Errorf("Builder.Update() =\n%s\nwant\n%s", got, tt.want)
@@ -409,7 +370,7 @@ func TestBuilder_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &Builder[ColName]{}
-			b.Delete(tt.args.schema, tt.args.table, tt.args.wf, tt.args.returnColumns)
+			b.Delete(tt.args.schema, tt.args.table, tt.args.wf, tt.args.returnColumns...)
 
 			if got := b.String(); got != tt.want {
 				t.Errorf("Builder.Delete() =\n%s\nwant\n%s", got, tt.want)

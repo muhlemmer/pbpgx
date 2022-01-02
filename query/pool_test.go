@@ -32,32 +32,26 @@ func TestPool(t *testing.T) {
 	type args struct {
 		schema, table string
 		msg           proto.Message
+		insertColumns FieldNames
 		returnColumns []ColName
-		skipEmpty     bool
-		exclude       []string
 	}
 
 	a := args{
-		schema: "public",
-		table:  "simple",
-		msg: &support.Simple{
-			Id:    31,
-			Title: "foo bar",
-		},
+		schema:        "public",
+		table:         "simple",
+		insertColumns: FieldNames{"title", "data"},
 		returnColumns: []ColName{
 			support.SimpleColumns_id,
 			support.SimpleColumns_title,
 			support.SimpleColumns_data,
 		},
-		skipEmpty: false,
-		exclude:   []string{"id"},
 	}
 
 	var p Pool[ColName]
 
 	for i := 0; i < 10; i++ {
 		b := p.Get()
-		b.Insert(a.schema, a.table, a.msg, a.returnColumns, a.skipEmpty, a.exclude...)
+		b.Insert(a.schema, a.table, a.insertColumns, a.returnColumns...)
 
 		if got := b.String(); got != want {
 			t.Errorf("Builder.Insert() =\n%s\nwant\n%s", got, want)

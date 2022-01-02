@@ -31,7 +31,7 @@ func (tab *Table[Col, Record, ID]) deleteQuery(wf query.WhereFunc[Col], returnCo
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	b.Delete(tab.schema, tab.table, query.WhereID[Col], returnColumns)
+	b.Delete(tab.schema, tab.table, query.WhereID[Col], returnColumns...)
 	return b.String()
 }
 
