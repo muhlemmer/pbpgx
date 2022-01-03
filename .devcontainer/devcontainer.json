@@ -14,8 +14,6 @@
     "settings": {
         "go.toolsManagement.checkForUpdates": "local",
 		"go.useLanguageServer": true,
-		"go.gopath": "/go",
-		"go.goroot": "/master/go"
     },
 
     "postCreateCommand": "go mod download",
