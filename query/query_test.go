@@ -154,7 +154,7 @@ func TestBuilder_WriteReturnClause(t *testing.T) {
 func TestBuilder_Insert(t *testing.T) {
 	type args struct {
 		schema, table string
-		insertColumns FieldNames
+		insertColumns []string
 		returnColumns []ColName
 	}
 	tests := []struct {
@@ -167,7 +167,7 @@ func TestBuilder_Insert(t *testing.T) {
 			args{
 				schema:        "",
 				table:         "simple",
-				insertColumns: FieldNames{"id", "title"},
+				insertColumns: []string{"id", "title"},
 			},
 			`INSERT INTO "simple" ("id", "title") VALUES ($1, $2);`,
 		},
@@ -176,7 +176,7 @@ func TestBuilder_Insert(t *testing.T) {
 			args{
 				schema:        "public",
 				table:         "simple",
-				insertColumns: FieldNames{"id", "title"},
+				insertColumns: []string{"id", "title"},
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
 				},
@@ -188,7 +188,7 @@ func TestBuilder_Insert(t *testing.T) {
 			args{
 				schema:        "public",
 				table:         "simple",
-				insertColumns: FieldNames{"title", "data"},
+				insertColumns: []string{"title", "data"},
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
 					support.SimpleColumns_title,
@@ -282,32 +282,30 @@ func TestBuilder_Update(t *testing.T) {
 	type args struct {
 		schema, table string
 		wf            WhereFunc[ColName]
-		updateColumns FieldNames
+		updateColumns []string
 		returnColumns []ColName
 	}
 	tests := []struct {
-		name           string
-		args           args
-		want           string
-		wantFieldNames []string
+		name string
+		args args
+		want string
 	}{
 		{
 			"no schema, no return",
 			args{
 				schema:        "",
 				table:         "simple",
-				updateColumns: FieldNames{"title"},
+				updateColumns: []string{"title"},
 				wf:            WhereID[ColName],
 			},
 			`UPDATE "simple" SET "title" = $1 WHERE "id" = $2;`,
-			[]string{"id", "title"},
 		},
 		{
 			"with schema, return all",
 			args{
 				schema:        "public",
 				table:         "simple",
-				updateColumns: FieldNames{"id", "title"},
+				updateColumns: []string{"id", "title"},
 				wf:            WhereID[ColName],
 				returnColumns: []ColName{
 					support.SimpleColumns_id,
@@ -316,7 +314,6 @@ func TestBuilder_Update(t *testing.T) {
 				},
 			},
 			`UPDATE "public"."simple" SET "id" = $1, "title" = $2 WHERE "id" = $3 RETURNING "id", "title", "data";`,
-			[]string{"id", "title"},
 		},
 	}
 	for _, tt := range tests {

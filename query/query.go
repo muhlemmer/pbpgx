@@ -106,7 +106,7 @@ func (b *Builder[Col]) WriteReturnClause(columns []Col) {
 // Insert builds an insert query.
 // See WriteReturnClause on when and how the RETURNING clause is written.
 //   INSERT INTO "public"."simple_rw" ("id", "title") VALUES ($1, $2) RETURNING "id";
-func (b *Builder[Col]) Insert(schema, table string, insertColumns FieldNames, returnColumns ...Col) {
+func (b *Builder[Col]) Insert(schema, table string, insertColumns []string, returnColumns ...Col) {
 	const (
 		insertInto = "INSERT INTO "
 		values     = " VALUES "
@@ -163,7 +163,7 @@ func (b *Builder[Col]) Select(schema, table string, columns []Col, wf WhereFunc[
 // WARNING: a nil WhereFunc will result in updates of all records in a table!
 // See WriteReturnClause on when and how the RETURNING clause is written.
 //   UPDATE "public"."simple" SET "title" = $1, "data" = $2 WHERE "id" = $3 RETURNING ("title", "data");
-func (b *Builder[Col]) Update(schema, table string, updateColumns FieldNames, wf WhereFunc[Col], returnColumns ...Col) {
+func (b *Builder[Col]) Update(schema, table string, updateColumns []string, wf WhereFunc[Col], returnColumns ...Col) {
 	const (
 		update = "UPDATE "
 		set    = " SET "

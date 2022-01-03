@@ -28,11 +28,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, fieldNames query.FieldNames) {
+func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, fieldNames FieldNames) {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	fieldNames = query.ParseFields(data, skipEmpty)
+	fieldNames = ParseFields(data, skipEmpty)
 	b.Update(tab.schema, tab.table, fieldNames, wf, returnColumns...)
 
 	return b.String(), fieldNames

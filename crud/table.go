@@ -32,7 +32,7 @@ import (
 type Table[Col query.ColName, Record proto.Message, ID constraints.Ordered] struct {
 	schema string
 	table  string
-	cd     query.ColumnDefault
+	cd     ColumnDefault
 	pool   query.Pool[Col]
 }
 
@@ -50,7 +50,7 @@ type Table[Col query.ColName, Record proto.Message, ID constraints.Ordered] stru
 // See pbpgx.Scan for details.
 // The ID type parameter should match the type used in "id" column of the table,
 // used to match a single row in Read, Update and Delete.
-func NewTable[Col query.ColName, Record proto.Message, ID constraints.Ordered](schema, table string, cd query.ColumnDefault) *Table[Col, Record, ID] {
+func NewTable[Col query.ColName, Record proto.Message, ID constraints.Ordered](schema, table string, cd ColumnDefault) *Table[Col, Record, ID] {
 	return &Table[Col, Record, ID]{
 		schema: schema,
 		table:  table,

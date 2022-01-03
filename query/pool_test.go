@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/muhlemmer/pbpgx/internal/support"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestPool(t *testing.T) {
@@ -31,15 +30,14 @@ func TestPool(t *testing.T) {
 
 	type args struct {
 		schema, table string
-		msg           proto.Message
-		insertColumns FieldNames
+		insertColumns []string
 		returnColumns []ColName
 	}
 
 	a := args{
 		schema:        "public",
 		table:         "simple",
-		insertColumns: FieldNames{"title", "data"},
+		insertColumns: []string{"title", "data"},
 		returnColumns: []ColName{
 			support.SimpleColumns_id,
 			support.SimpleColumns_title,

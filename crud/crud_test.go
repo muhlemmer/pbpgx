@@ -25,12 +25,11 @@ import (
 
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
-	"github.com/muhlemmer/pbpgx/query"
 )
 
 var (
-	simpleRoTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_ro", query.ColumnDefault{"id": query.Zero})
-	simpleRwTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_rw", query.ColumnDefault{"id": query.Zero})
+	simpleRoTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_ro", ColumnDefault{"id": Zero})
+	simpleRwTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_rw", ColumnDefault{"id": Zero})
 )
 
 func TestMain(m *testing.M) {

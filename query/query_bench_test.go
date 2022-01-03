@@ -28,14 +28,14 @@ import (
 func BenchmarkBuilder_Insert(b *testing.B) {
 	type args struct {
 		schema, table string
-		insertColumns FieldNames
+		insertColumns []string
 		returnColumns []ColName
 	}
 
 	a := args{
 		schema:        "public",
 		table:         "simple",
-		insertColumns: FieldNames{"title", "data"},
+		insertColumns: []string{"title", "data"},
 		returnColumns: []ColName{
 			support.SimpleColumns_id,
 			support.SimpleColumns_title,
@@ -84,14 +84,14 @@ func BenchmarkBuilder_Update(b *testing.B) {
 	type args struct {
 		schema, table string
 		wf            WhereFunc[ColName]
-		updateColumns FieldNames
+		updateColumns []string
 		returnColumns []ColName
 	}
 
 	a := args{
 		schema:        "public",
 		table:         "simple",
-		updateColumns: FieldNames{"id", "title"},
+		updateColumns: []string{"id", "title"},
 		wf:            WhereID[ColName],
 		returnColumns: []ColName{
 			support.SimpleColumns_id,

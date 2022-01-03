@@ -24,15 +24,14 @@ import (
 	"fmt"
 
 	"github.com/muhlemmer/pbpgx"
-	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames query.FieldNames) {
+func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames FieldNames) {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	fieldNames = query.ParseFields(data, skipEmpty)
+	fieldNames = ParseFields(data, skipEmpty)
 	b.Insert(tab.schema, tab.table, fieldNames, returnColumns...)
 
 	return b.String(), fieldNames
