@@ -28,8 +28,8 @@ import (
 )
 
 var (
-	simpleRoTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_ro", ColumnDefault{"id": Zero})
-	simpleRwTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_rw", ColumnDefault{"id": Zero})
+	simpleRoTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_ro", Columns{"id": Zero})
+	simpleRwTab = NewTable[support.SimpleColumns, *support.Simple, int32]("public", "simple_rw", Columns{"id": Zero})
 )
 
 func TestMain(m *testing.M) {

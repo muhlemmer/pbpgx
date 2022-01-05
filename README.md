@@ -113,7 +113,8 @@ message ProductCreateQuery {
 In our implementation code we reate a `Table` once, which takes care of query builder re-use:
 
 ```
-tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", nil)
+columns := crud.Columns{"title": crud.Zero}
+tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", columns)
 ```
 
 We can use the `id` and `columns` from an incomming query to read a single message,

@@ -6,6 +6,6 @@ import (
 )
 
 func ExampleNewTable() {
-	cd := crud.ColumnDefault{"id": crud.Zero}
-	crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", cd)
+	columns := crud.Columns{"title": crud.Zero}
+	crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", columns)
 }

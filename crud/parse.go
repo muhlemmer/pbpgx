@@ -28,17 +28,17 @@ import (
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// FieldNames expresses proto.Message field names for use as column specifiers.
-type FieldNames []string
+// ColNames expresses proto.Message field names for use as column specifiers.
+type ColNames []string
 
 // ParseFields returns a slice of field names from the passed proto message.
 // Optionaly, empty (zero-value) fields can be skipped.
 // Note that names are case sensitive, as defined in the proto file, not the Go struct field names.
-func ParseFields(msg proto.Message, skipEmpty bool) (fieldNames FieldNames) {
+func ParseFields(msg proto.Message, skipEmpty bool) (cols ColNames) {
 	rm := msg.ProtoReflect()
 	fields := rm.Descriptor().Fields()
 
-	fieldNames = make([]string, 0, fields.Len())
+	cols = make([]string, 0, fields.Len())
 
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
@@ -46,10 +46,10 @@ func ParseFields(msg proto.Message, skipEmpty bool) (fieldNames FieldNames) {
 			continue
 		}
 
-		fieldNames = append(fieldNames, string(fd.Name()))
+		cols = append(cols, string(fd.Name()))
 	}
 
-	return fieldNames
+	return cols
 }
 
 type OnEmpty int
@@ -67,26 +67,29 @@ func (o OnEmpty) pgStatus() pgtype.Status {
 	return pgtype.Null
 }
 
-// ColumnDefault defines the default status of a column value.
+// Columns defines the default status of a column value.
 // This affects the write behaviour of emtpy fields during Create (INSERT) and Update (UPDATE) calls.
-type ColumnDefault map[string]OnEmpty
+type Columns map[string]OnEmpty
 
 // ParseArgs parses the values from the fields named by fieldNames.
 // The returned args contains pgtype values for efficient encoding.
 // Empty fields will be set as `Null` by default, unless when set to `Zero`
-// in the passed ColumnDefault. ColumnDefault may be nil.
-func (fieldNames FieldNames) ParseArgs(msg proto.Message, cd ColumnDefault) (args []interface{}, err error) {
+// in Columns. Columns may be nil.
+func (columns Columns) ParseArgs(msg proto.Message, colNames ColNames) (args []interface{}, err error) {
 	rm := msg.ProtoReflect()
 	fields := rm.Descriptor().Fields()
 
-	args = make([]interface{}, 0, len(fieldNames)+5)
+	args = make([]interface{}, 0, len(colNames)+5)
 
-	for _, name := range fieldNames {
+	for _, name := range colNames {
 		fd := fields.ByName(pr.Name(name))
+		if fd == nil {
+			return nil, fmt.Errorf("ParseArgs: field %q not in msg %T", name, msg)
+		}
 
-		arg, err := pbpgx.NewValue(fd, cd[name].pgStatus())
+		arg, err := pbpgx.NewValue(fd, columns[name].pgStatus())
 		if err != nil {
-			return nil, fmt.Errorf("parseArgs: %w", err)
+			return nil, fmt.Errorf("ParseArgs: %w", err)
 		}
 
 		if rm.Has(fd) {

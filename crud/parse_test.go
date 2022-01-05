@@ -39,17 +39,17 @@ func TestParseFields(t *testing.T) {
 	tests := []struct {
 		name      string
 		skipEmpty bool
-		want      FieldNames
+		want      ColNames
 	}{
 		{
 			"no skip",
 			false,
-			FieldNames{"id", "title", "data"},
+			ColNames{"id", "title", "data"},
 		},
 		{
 			"skip empty",
 			true,
-			FieldNames{"id", "title"},
+			ColNames{"id", "title"},
 		},
 	}
 	for _, tt := range tests {
@@ -63,23 +63,24 @@ func TestParseFields(t *testing.T) {
 	}
 }
 
-func TestParseArgs(t *testing.T) {
+func TestColumns_ParseArgs(t *testing.T) {
 	type args struct {
-		msg proto.Message
-		cd  ColumnDefault
+		msg  proto.Message
+		cols ColNames
 	}
 	tests := []struct {
-		name       string
-		fieldNames FieldNames
-		args       args
-		wantArgs   []interface{}
-		wantErr    bool
+		name     string
+		columns  Columns
+		args     args
+		wantArgs []interface{}
+		wantErr  bool
 	}{
 		{
 			"all empty, default",
-			[]string{"id", "title", "data"},
+			nil,
 			args{
-				msg: &support.Simple{},
+				msg:  &support.Simple{},
+				cols: []string{"id", "title", "data"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Status: pgtype.Null},
@@ -90,13 +91,13 @@ func TestParseArgs(t *testing.T) {
 		},
 		{
 			"all empty, onEmpty map",
-			[]string{"id", "title", "data"},
+			Columns{
+				"title": Zero,
+				"data":  Null,
+			},
 			args{
-				msg: &support.Simple{},
-				cd: ColumnDefault{
-					"title": Zero,
-					"data":  Null,
-				},
+				msg:  &support.Simple{},
+				cols: []string{"id", "title", "data"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Status: pgtype.Null},
@@ -107,15 +108,15 @@ func TestParseArgs(t *testing.T) {
 		},
 		{
 			"with id, onEmpty map",
-			[]string{"id", "title", "data"},
+			Columns{
+				"title": Zero,
+				"data":  Null,
+			},
 			args{
 				msg: &support.Simple{
 					Id: 87,
 				},
-				cd: ColumnDefault{
-					"title": Zero,
-					"data":  Null,
-				},
+				cols: []string{"id", "title", "data"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Int: 87, Status: pgtype.Present},
@@ -126,17 +127,17 @@ func TestParseArgs(t *testing.T) {
 		},
 		{
 			"all values, onEmpty map",
-			[]string{"id", "title", "data"},
+			Columns{
+				"title": Zero,
+				"data":  Null,
+			},
 			args{
 				msg: &support.Simple{
 					Id:    87,
 					Title: "Hello World!",
 					Data:  "foo bar",
 				},
-				cd: ColumnDefault{
-					"title": Zero,
-					"data":  Null,
-				},
+				cols: []string{"id", "title", "data"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Int: 87, Status: pgtype.Present},
@@ -147,11 +148,12 @@ func TestParseArgs(t *testing.T) {
 		},
 		{
 			"unsupported error",
-			[]string{"bl"},
+			nil,
 			args{
 				msg: &support.Unsupported{
 					Bl: []bool{true, false},
 				},
+				cols: []string{"bl"},
 			},
 			nil,
 			true,
@@ -160,7 +162,7 @@ func TestParseArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			gotArgs, err := tt.fieldNames.ParseArgs(tt.args.msg, tt.args.cd)
+			gotArgs, err := tt.columns.ParseArgs(tt.args.msg, tt.args.cols)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("query.parseArgs() error = %v, wantErr %v", err, tt.wantErr)
 				return

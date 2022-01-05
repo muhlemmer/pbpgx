@@ -26,14 +26,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type Enum interface {
+	query.ColName
+	constraints.Integer
+}
+
 // Table is a re-usable and concurrency safe object for CRUD operations.
 // It holds reference to a table name, optional with schema
 // and optimizes repeated query building for all supported CRUD functions in this package.
-type Table[Col query.ColName, Record proto.Message, ID constraints.Ordered] struct {
-	schema string
-	table  string
-	cd     ColumnDefault
-	pool   query.Pool[Col]
+type Table[Col Enum, Record proto.Message, ID constraints.Ordered] struct {
+	schema  string
+	table   string
+	columns Columns
+	pool    query.Pool[Col]
 }
 
 // NewTable returns a newly allocated table.
@@ -50,11 +55,11 @@ type Table[Col query.ColName, Record proto.Message, ID constraints.Ordered] stru
 // See pbpgx.Scan for details.
 // The ID type parameter should match the type used in "id" column of the table,
 // used to match a single row in Read, Update and Delete.
-func NewTable[Col query.ColName, Record proto.Message, ID constraints.Ordered](schema, table string, cd ColumnDefault) *Table[Col, Record, ID] {
+func NewTable[Col Enum, Record proto.Message, ID constraints.Ordered](schema, table string, cd Columns) *Table[Col, Record, ID] {
 	return &Table[Col, Record, ID]{
-		schema: schema,
-		table:  table,
-		cd:     cd,
+		schema:  schema,
+		table:   table,
+		columns: cd,
 	}
 }
 

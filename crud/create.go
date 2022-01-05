@@ -27,14 +27,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty bool, returnColumns ...Col) (qs string, fieldNames FieldNames) {
+func (tab *Table[Col, Record, ID]) insertQuery(cols ColNames, returnColumns ...Col) (query string) {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	fieldNames = ParseFields(data, skipEmpty)
-	b.Insert(tab.schema, tab.table, fieldNames, returnColumns...)
+	b.Insert(tab.schema, tab.table, cols, returnColumns...)
 
-	return b.String(), fieldNames
+	return b.String()
 }
 
 // CreateOne creates one record in a Table, with the contents of data
@@ -46,9 +45,10 @@ func (tab *Table[Col, Record, ID]) insertQuery(data proto.Message, skipEmpty boo
 // If any returnColumns are specified, the returned record will have the fields set as named by returnColumns.
 // If no returnColumns, the returned record will always be nil.
 func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message, returnColumns []Col) (record Record, err error) {
-	qs, fieldNames := tab.insertQuery(data, true, returnColumns...)
+	cols := ParseFields(data, true)
+	qs := tab.insertQuery(cols, returnColumns...)
 
-	args, err := fieldNames.ParseArgs(data, tab.cd)
+	args, err := tab.columns.ParseArgs(data, cols)
 	if err != nil {
 		return record, fmt.Errorf("Table %s CreateOne: %w", tab.name(), err)
 	}
@@ -82,12 +82,12 @@ func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Execut
 // Furthermore, this function makes no assumptions on transactional requirements of the call.
 // Meaning that on error a part of the data may be inserted and will not be rolled back.
 // It is the responsibilty of the caller to Begin and Rollback in case this is required.
-func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor, data []proto.Message, returnColumns ...Col) (records []Record, err error) {
-	if len(data) == 0 {
+func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor, cols ColNames, data []proto.Message, returnColumns ...Col) (records []Record, err error) {
+	if len(cols) == 0 || len(data) == 0 {
 		return nil, nil
 	}
 
-	qs, fieldNames := tab.insertQuery(data[0], true, returnColumns...)
+	qs := tab.insertQuery(cols, returnColumns...)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -97,7 +97,7 @@ func (tab *Table[Col, Record, ID]) Create(ctx context.Context, x pbpgx.Executor,
 	}
 
 	for i, m := range data {
-		args, err := fieldNames.ParseArgs(m, tab.cd)
+		args, err := tab.columns.ParseArgs(m, cols)
 		if err != nil {
 			return records, fmt.Errorf("Table %s Create[%d]: %w", tab.name(), i, err)
 		}
