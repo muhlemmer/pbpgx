@@ -39,22 +39,31 @@ func TestParseFields(t *testing.T) {
 	tests := []struct {
 		name      string
 		skipEmpty bool
+		ignore    []string
 		want      ColNames
 	}{
 		{
 			"no skip",
 			false,
+			nil,
 			ColNames{"id", "title", "data"},
 		},
 		{
 			"skip empty",
 			true,
+			nil,
 			ColNames{"id", "title"},
+		},
+		{
+			"ignore id, title",
+			false,
+			[]string{"id", "title"},
+			ColNames{"data"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseFields(msg, tt.skipEmpty)
+			got := ParseFields(msg, tt.skipEmpty, tt.ignore...)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("query.fieldNames =\n%v\nwant\n%v", got, tt.want)

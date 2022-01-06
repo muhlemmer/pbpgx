@@ -148,7 +148,7 @@ query := &gen.ProductCreateQuery{
     },
 }
 
-record, err := tab.CreateOne(ctx, conn, query.GetData(), query.GetColumns())
+record, err := tab.CreateOne(ctx, conn, crud.ParseFields(query, true), query.GetData(), query.GetColumns())
 if err != nil {
     panic(err)
 }

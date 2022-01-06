@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
+	"constraints"
 	"fmt"
 
 	"github.com/jackc/pgtype"
@@ -28,25 +29,37 @@ import (
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
+func contains[T constraints.Ordered](v T, list []T) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ColNames expresses proto.Message field names for use as column specifiers.
 type ColNames []string
 
 // ParseFields returns a slice of field names from the passed proto message.
 // Optionaly, empty (zero-value) fields can be skipped.
 // Note that names are case sensitive, as defined in the proto file, not the Go struct field names.
-func ParseFields(msg proto.Message, skipEmpty bool) (cols ColNames) {
+func ParseFields(msg proto.Message, skipEmpty bool, ignore ...string) (cols ColNames) {
 	rm := msg.ProtoReflect()
 	fields := rm.Descriptor().Fields()
 
-	cols = make([]string, 0, fields.Len())
+	cols = make([]string, 0, fields.Len()-len(ignore))
 
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
-		if skipEmpty && !rm.Has(fd) {
+		name := string(fd.Name())
+
+		if skipEmpty && !rm.Has(fd) || contains(name, ignore) {
 			continue
 		}
 
-		cols = append(cols, string(fd.Name()))
+		cols = append(cols, name)
 	}
 
 	return cols

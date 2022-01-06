@@ -38,14 +38,12 @@ func (tab *Table[Col, Record, ID]) insertQuery(cols ColNames, returnColumns ...C
 
 // CreateOne creates one record in a Table, with the contents of data
 // and returns the result in a message of type Record.
-// Each field value in data will be set to a corresponding column,
+// Each field value in data will be set to a corresponding column from cols,
 // matching on the procobuf fieldname, case sensitive.
-// Empty fields are omitted from the query, the resulting values for the corresponding columns will depend on database defaults.
 //
 // If any returnColumns are specified, the returned record will have the fields set as named by returnColumns.
 // If no returnColumns, the returned record will always be nil.
-func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, data proto.Message, returnColumns []Col) (record Record, err error) {
-	cols := ParseFields(data, true)
+func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, cols ColNames, data proto.Message, returnColumns []Col) (record Record, err error) {
 	qs := tab.insertQuery(cols, returnColumns...)
 
 	args, err := tab.columns.ParseArgs(data, cols)

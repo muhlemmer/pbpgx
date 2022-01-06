@@ -107,7 +107,7 @@ func TestTable_CreateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRwTab.CreateOne(tt.ctx, tx, tt.req, tt.retCols)
+			got, err := simpleRwTab.CreateOne(tt.ctx, tx, ParseFields(tt.req, true), tt.req, tt.retCols)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Table.CreateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
