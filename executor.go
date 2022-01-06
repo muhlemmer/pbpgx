@@ -73,8 +73,8 @@ func QueryRow[M proto.Message](ctx context.Context, x Executor, sql string, args
 
 // QueryStream runs the passed sql with args on the Executor x.
 // Results are send to stream. See ScanStream for more details.
-func QueryStream[M proto.Message](ctx context.Context, x Executor, stream ServerStream[M], sql string, args ...interface{}) error {
-	ctx, cancel := context.WithCancel(ctx)
+func QueryStream[M proto.Message](x Executor, stream ServerStream[M], sql string, args ...interface{}) error {
+	ctx, cancel := context.WithCancel(stream.Context())
 	defer cancel()
 
 	rows, err := x.Query(ctx, sql, args...)

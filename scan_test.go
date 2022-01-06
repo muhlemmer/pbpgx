@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package pbpgx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -261,6 +262,7 @@ func TestScan_unsuported2(t *testing.T) {
 }
 
 type testServerStream[M proto.Message] struct {
+	ctx     context.Context
 	results []M
 	err     error
 }
@@ -268,6 +270,10 @@ type testServerStream[M proto.Message] struct {
 func (s *testServerStream[M]) Send(msg M) error {
 	s.results = append(s.results, msg)
 	return s.err
+}
+
+func (s *testServerStream[M]) Context() context.Context {
+	return s.ctx
 }
 
 func TestScanStream(t *testing.T) {

@@ -194,7 +194,9 @@ func TestQueryStream(t *testing.T) {
 			"CTX error",
 			args{
 				testlib.ECTX,
-				&testServerStream[*support.Simple]{},
+				&testServerStream[*support.Simple]{
+					ctx: testlib.ECTX,
+				},
 				"select * from simple_ro;",
 				nil,
 			},
@@ -205,7 +207,9 @@ func TestQueryStream(t *testing.T) {
 			"Simple query",
 			args{
 				testlib.CTX,
-				&testServerStream[*support.Simple]{},
+				&testServerStream[*support.Simple]{
+					ctx: testlib.CTX,
+				},
 				"select * from simple_ro;",
 				nil,
 			},
@@ -222,7 +226,9 @@ func TestQueryStream(t *testing.T) {
 			"Query with arguments",
 			args{
 				testlib.CTX,
-				&testServerStream[*support.Simple]{},
+				&testServerStream[*support.Simple]{
+					ctx: testlib.CTX,
+				},
 				"select title from simple_ro where id in ($1, $2, $3);",
 				[]interface{}{2, 3, 4},
 			},
@@ -236,7 +242,7 @@ func TestQueryStream(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := QueryStream[*support.Simple](tt.args.ctx, testlib.ConnPool, tt.args.stream, tt.args.sql, tt.args.args...)
+			err := QueryStream[*support.Simple](testlib.ConnPool, tt.args.stream, tt.args.sql, tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
 				return

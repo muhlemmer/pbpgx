@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package pbpgx
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/jackc/pgproto3/v2"
@@ -129,6 +130,7 @@ func ScanOne[M proto.Message](rows pgx.Rows) (M, error) {
 
 type ServerStream[M proto.Message] interface {
 	Send(M) error
+	Context() context.Context
 }
 
 // ScanStream writes instances of proto messages with type M to stream.Send(), filled with data from rows.
