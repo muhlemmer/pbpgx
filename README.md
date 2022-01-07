@@ -43,6 +43,7 @@ message Product {
     int64 id = 1;
     string title = 2;
     double price = 3;
+    google.protobuf.Timestamp created = 4;
 }
 
 message ProductList {
@@ -54,7 +55,7 @@ message ProductList {
 Can easily be filled with:
 
 ```
-rows, err := conn.Query(context.TODO(), "select id, tile, price from products;")
+rows, err := conn.Query(ctx, "select id, title, price, created from products;")
 if err != nil {
     panic(err)
 }
@@ -73,7 +74,8 @@ if err != nil {
 The generic `Query()` function can be used to execute a query and return a slice of Protocol Buffer messages filled with the results, through [Row Scanning](#row-scanning):
 
 ```
-result.Products, err = pbpgx.Query[*gen.Product](context.TODO(), conn, "select id, tile, price from products where id = $1;", 2)
+result.Products, err = pbpgx.Query[*gen.Product](ctx, conn,
+    "select title, price, created from products where id in ($1, $2, $3);", 2, 4, 5)
 if err != nil {
     panic(err)
 }
@@ -96,6 +98,7 @@ message ProductColumns{
         id = 0;
         title = 1;
         price = 2;
+        created = 3;
     }
 }
 
@@ -122,8 +125,12 @@ returned as the requested type `Product`:
 
 ```
 query := &gen.ProductQuery{
-    Id:      2,
-    Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
+    Id: 2,
+    Columns: []gen.ProductColumns_Names{
+        gen.ProductColumns_title,
+        gen.ProductColumns_price,
+        gen.ProductColumns_created,
+    },
 }
 
 record, err := tab.ReadOne(ctx, conn, query.Id, query.Columns)
@@ -133,7 +140,7 @@ if err != nil {
 
 ```
 
-Or, create a new entry (`INSERT`), returing specific fields after the database assigns the primary ID:
+Or, create a new entry (`INSERT`), returing specific fields after the database assigns the primary ID and created timestamp:
 
 ```
 query := &gen.ProductCreateQuery{
@@ -145,10 +152,11 @@ query := &gen.ProductCreateQuery{
         gen.ProductColumns_id,
         gen.ProductColumns_title,
         gen.ProductColumns_price,
+        gen.ProductColumns_created,
     },
 }
 
-record, err := tab.CreateOne(ctx, conn, crud.ParseFields(query, true), query.GetData(), query.GetColumns())
+record, err := tab.CreateOne(ctx, conn, crud.ParseFields(query.GetData(), true), query.GetData(), query.GetColumns()...)
 if err != nil {
     panic(err)
 }

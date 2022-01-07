@@ -31,7 +31,7 @@ import (
 )
 
 func ExampleTable_ReadOne() {
-	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int64]("public", "example", nil)
+	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int64]("public", "products", nil)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
@@ -43,8 +43,12 @@ func ExampleTable_ReadOne() {
 	defer conn.Close(ctx)
 
 	query := &gen.ProductQuery{
-		Id:      2,
-		Columns: []gen.ProductColumns_Names{gen.ProductColumns_title, gen.ProductColumns_price},
+		Id: 2,
+		Columns: []gen.ProductColumns_Names{
+			gen.ProductColumns_title,
+			gen.ProductColumns_price,
+			gen.ProductColumns_created,
+		},
 	}
 
 	record, err := tab.ReadOne(ctx, conn, query.Id, query.Columns)
@@ -55,5 +59,5 @@ func ExampleTable_ReadOne() {
 	out, _ := protojson.Marshal(record)
 	fmt.Println(string(out))
 
-	// {"title":"two","price":10.45}
+	// {"title":"two","price":10.45,"created":"2022-01-07T13:47:08Z"}
 }

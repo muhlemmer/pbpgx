@@ -22,9 +22,11 @@ package pbpgx
 import (
 	"constraints"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // convertIntValueFunc returns a function which calls passed function
@@ -99,9 +101,35 @@ func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (*Value, error) {
 		d.ValueTranscoder = &pgtype.Int8{Status: status}
 		d.valueFunc = convertIntValueFunc[int64](pr.ValueOfUint64)
 
+	case pr.MessageKind:
+		name := fd.Message().FullName()
+
+		switch name {
+		case SupportedTimestamp:
+			d.ValueTranscoder = &pgtype.Timestamptz{Status: status}
+			d.valueFunc = timeStampValue
+
+		default:
+			return nil, fmt.Errorf("unsupported message type %q", name)
+		}
+
 	default:
-		return nil, fmt.Errorf("unsupported type %q for scanning", fd.Kind())
+		return nil, fmt.Errorf("unsupported type %q", fd.Kind())
 	}
 
 	return d, nil
+}
+
+const (
+	SupportedTimestamp = "google.protobuf.Timestamp"
+)
+
+func timeStampValue(x interface{}) pr.Value {
+	if x == nil {
+		return pr.ValueOf(x)
+	}
+
+	return pr.ValueOfMessage(
+		timestamppb.New(x.(time.Time)).ProtoReflect(),
+	)
 }

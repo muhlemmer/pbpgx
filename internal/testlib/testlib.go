@@ -29,6 +29,8 @@ import (
 
 	_ "embed"
 
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/log/testingadapter"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -82,6 +84,12 @@ var createTablesSQL string
 //go:embed drop.sql
 var dropTablesSQL string
 
+type logger struct{}
+
+func (logger) Log(args ...interface{}) {
+	fmt.Println(args...)
+}
+
 // testMain is a wrapper which allows defered statements to run before os.Exit is called.
 func TestMain(m *testing.M) int {
 	var cancel context.CancelFunc
@@ -95,6 +103,9 @@ func TestMain(m *testing.M) int {
 	if err != nil {
 		panic(err)
 	}
+
+	pcfg.ConnConfig.Logger = testingadapter.NewLogger(logger{})
+	pcfg.ConnConfig.LogLevel = pgx.LogLevelDebug
 
 	ConnPool, err = pgxpool.ConnectConfig(CTX, pcfg)
 	if err != nil {

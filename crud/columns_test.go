@@ -22,11 +22,13 @@ package crud
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestParseFields(t *testing.T) {
@@ -46,7 +48,7 @@ func TestParseFields(t *testing.T) {
 			"no skip",
 			false,
 			nil,
-			ColNames{"id", "title", "data"},
+			ColNames{"id", "title", "data", "created"},
 		},
 		{
 			"skip empty",
@@ -58,7 +60,7 @@ func TestParseFields(t *testing.T) {
 			"ignore id, title",
 			false,
 			[]string{"id", "title"},
-			ColNames{"data"},
+			ColNames{"data", "created"},
 		},
 	}
 	for _, tt := range tests {
@@ -89,12 +91,13 @@ func TestColumns_ParseArgs(t *testing.T) {
 			nil,
 			args{
 				msg:  &support.Simple{},
-				cols: []string{"id", "title", "data"},
+				cols: []string{"id", "title", "data", "created"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Status: pgtype.Null},
 				&pgtype.Text{Status: pgtype.Null},
 				&pgtype.Text{Status: pgtype.Null},
+				&pgtype.Timestamptz{Status: pgtype.Null},
 			},
 			false,
 		},
@@ -106,12 +109,13 @@ func TestColumns_ParseArgs(t *testing.T) {
 			},
 			args{
 				msg:  &support.Simple{},
-				cols: []string{"id", "title", "data"},
+				cols: []string{"id", "title", "data", "created"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Status: pgtype.Null},
 				&pgtype.Text{Status: pgtype.Present},
 				&pgtype.Text{Status: pgtype.Null},
+				&pgtype.Timestamptz{Status: pgtype.Null},
 			},
 			false,
 		},
@@ -145,13 +149,21 @@ func TestColumns_ParseArgs(t *testing.T) {
 					Id:    87,
 					Title: "Hello World!",
 					Data:  "foo bar",
+					Created: &timestamppb.Timestamp{
+						Seconds: 12,
+						Nanos:   34,
+					},
 				},
-				cols: []string{"id", "title", "data"},
+				cols: []string{"id", "title", "data", "created"},
 			},
 			[]interface{}{
 				&pgtype.Int4{Int: 87, Status: pgtype.Present},
 				&pgtype.Text{String: "Hello World!", Status: pgtype.Present},
 				&pgtype.Text{String: "foo bar", Status: pgtype.Present},
+				&pgtype.Timestamptz{
+					Time:   time.Unix(12, 34),
+					Status: pgtype.Present,
+				},
 			},
 			false,
 		},
@@ -163,6 +175,18 @@ func TestColumns_ParseArgs(t *testing.T) {
 					Bl: []bool{true, false},
 				},
 				cols: []string{"bl"},
+			},
+			nil,
+			true,
+		},
+		{
+			"unsupported message error",
+			nil,
+			args{
+				msg: &support.Unsupported{
+					Sup: &support.Supported{I32: 2},
+				},
+				cols: []string{"sup"},
 			},
 			nil,
 			true,
@@ -182,10 +206,21 @@ func TestColumns_ParseArgs(t *testing.T) {
 			}
 
 			for i := 0; i < len(gotArgs); i++ {
+				var ok bool
 				got := gotArgs[i].(*pbpgx.Value).ValueTranscoder
-				if !reflect.DeepEqual(got, tt.wantArgs[i]) {
-					t.Errorf("query.parseArgs() = %v, want %v", gotArgs[i], tt.wantArgs[i])
+
+				switch x := got.(type) {
+				case *pgtype.Timestamptz:
+					ok = x.Time.Equal(tt.wantArgs[i].(*pgtype.Timestamptz).Time)
+
+				default:
+					ok = reflect.DeepEqual(x, tt.wantArgs[i])
 				}
+
+				if !ok {
+					t.Errorf("query.parseArgs() = %v, want %v", got, tt.wantArgs[i])
+				}
+
 			}
 		})
 	}

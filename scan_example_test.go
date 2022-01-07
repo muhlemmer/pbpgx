@@ -40,7 +40,7 @@ func ExampleScan() {
 	}
 	defer conn.Close(ctx)
 
-	rows, err := conn.Query(ctx, "select id, title, price from products;")
+	rows, err := conn.Query(ctx, "select id, title, price, created from products;")
 	if err != nil {
 		panic(err)
 	}
@@ -55,5 +55,5 @@ func ExampleScan() {
 	out, _ := protojson.Marshal(result)
 	fmt.Println(string(out))
 
-	// {"products":[{"id":"1","title":"one","price":9.99},{"id":"2","title":"two","price":10.45},{"id":"3","title":"three"},{"id":"4","title":"four","price":100},{"id":"5","title":"five","price":0.9}]}
+	// {"products":[{"id":"1","title":"one","price":9.99,"created":"2022-01-07T13:47:07Z"},{"id":"2","title":"two","price":10.45,"created":"2022-01-07T13:47:08Z"},{"id":"3","title":"three","created":"2022-01-07T13:47:09Z"},{"id":"4","title":"four","price":100,"created":"2022-01-07T13:47:10Z"},{"id":"5","title":"five","price":0.9,"created":"2022-01-07T13:47:11Z"}]}
 }

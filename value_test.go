@@ -71,3 +71,24 @@ func Test_Value_value(t *testing.T) {
 		})
 	}
 }
+
+func Test_timeStampValue(t *testing.T) {
+	tests := []struct {
+		name string
+		x    interface{}
+		want pr.Value
+	}{
+		{
+			"nil",
+			nil,
+			pr.Value{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := timeStampValue(tt.x); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("timeStampValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

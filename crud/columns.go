@@ -27,6 +27,7 @@ import (
 	"github.com/muhlemmer/pbpgx"
 	"google.golang.org/protobuf/proto"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func contains[T constraints.Ordered](v T, list []T) bool {
@@ -106,7 +107,22 @@ func (columns Columns) ParseArgs(msg proto.Message, colNames ColNames) (args []i
 		}
 
 		if rm.Has(fd) {
-			arg.Set(rm.Get(fd).Interface())
+			if fd.Kind() == pr.MessageKind {
+				switch x := rm.Get(fd).Message().Interface().(type) {
+
+				case *timestamppb.Timestamp:
+					arg.Set(x.AsTime())
+
+				default:
+					// Ussualy a similar error is returned from NewValue.
+					// Just checking here to be sure we didn't miss anything.
+					return nil, fmt.Errorf("ParseArgs: unsupported message type %q", fd.Message().FullName())
+				}
+
+			} else {
+				arg.Set(rm.Get(fd).Interface())
+			}
+
 		}
 
 		args = append(args, arg)

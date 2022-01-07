@@ -43,7 +43,7 @@ func (tab *Table[Col, Record, ID]) insertQuery(cols ColNames, returnColumns ...C
 //
 // If any returnColumns are specified, the returned record will have the fields set as named by returnColumns.
 // If no returnColumns, the returned record will always be nil.
-func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, cols ColNames, data proto.Message, returnColumns []Col) (record Record, err error) {
+func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Executor, cols ColNames, data proto.Message, returnColumns ...Col) (record Record, err error) {
 	qs := tab.insertQuery(cols, returnColumns...)
 
 	args, err := tab.columns.ParseArgs(data, cols)
@@ -58,7 +58,7 @@ func (tab *Table[Col, Record, ID]) CreateOne(ctx context.Context, x pbpgx.Execut
 	}
 
 	if err != nil {
-		return record, fmt.Errorf("Table %s CreateOne: %w", tab.name(), err)
+		return record, fmt.Errorf("Table %s CreateOne: %w query %s", tab.name(), err, qs)
 	}
 
 	return

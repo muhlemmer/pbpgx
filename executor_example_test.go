@@ -43,7 +43,7 @@ func ExampleQuery() {
 	result := new(gen.ProductList)
 
 	result.Products, err = pbpgx.Query[*gen.Product](ctx, conn,
-		"select title, price from products where id in ($1, $2, $3);", 2, 4, 5)
+		"select title, price, created from products where id in ($1, $2, $3);", 2, 4, 5)
 	if err != nil {
 		panic(err)
 	}

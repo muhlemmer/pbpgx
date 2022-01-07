@@ -23,10 +23,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package example_gen;
 option go_package = "github.com/muhlemmer/pbpgx/example_gen";
 
+import "google/protobuf/timestamp.proto";
+
 message Product {
     int64 id = 1;
     string title = 2;
     double price = 3;
+    google.protobuf.Timestamp created = 4;
 }
 
 message ProductList {
@@ -38,6 +41,7 @@ message ProductColumns{
         id = 0;
         title = 1;
         price = 2;
+        created = 3;
     }
 }
 

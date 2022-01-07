@@ -36,6 +36,7 @@ message Supported {
     bytes bt = 7;
     uint32 u32 = 8;
     uint64 u64 = 9;
+    google.protobuf.Timestamp ts = 10;
 }
 
 // Unsupported destination types (for now)
@@ -50,7 +51,6 @@ message Unsupported {
     repeated uint32 u32 = 8;
     repeated uint64 u64 = 9;
     Supported sup = 10; // Nested messages
-    google.protobuf.Timestamp ts = 11;
 }
 
 // Simple is used for unit testing
@@ -58,12 +58,14 @@ message Simple {
     int32 id = 1;
     string title = 2;
     string data = 3;
+    google.protobuf.Timestamp created = 4;
 }
 
 enum SimpleColumns {
     id = 0;
     title = 1;
     data = 2;
+    created = 3;
 }
 
 message SimpleQuery {

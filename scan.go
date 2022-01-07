@@ -80,9 +80,13 @@ func (s *scanner[M]) scanRow() (M, error) {
 		return m, fmt.Errorf("pbpgx.Scan into proto.Message %T: %w", m, err)
 	}
 
-	for _, v := range s.dest {
-		d := v.(*Value)
-		msg.Set(d.fieldDesc, d.value())
+	for _, d := range s.dest {
+		v := d.(*Value)
+		pv := v.value()
+
+		if pv.IsValid() {
+			msg.Set(v.fieldDesc, pv)
+		}
 	}
 
 	return msg.Interface().(M), nil

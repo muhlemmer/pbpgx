@@ -1,7 +1,8 @@
 create table simple_ro (
     id integer primary key not null,
     title text null,
-    data text null
+    data text null,
+    created timestamptz null default now()
 );
 
 insert into simple_ro (id, title, data) values 
@@ -14,22 +15,24 @@ insert into simple_ro (id, title, data) values
 create table simple_rw (
     id integer primary key not null,
     title text null,
-    data text null
+    data text null,
+    created timestamptz null default now()
 );
 
 
 create table products (
-    id bigint primary key not null,
+    id bigserial primary key not null,
     title text not null,
-    price double precision null
+    price double precision null,
+    created timestamptz null default now()
 );
 
-insert into products (id, title, price) values 
-    (1, 'one', 9.99),
-    (2, 'two', 10.45),
-    (3, 'three', null),
-    (4, 'four', 100),
-    (5, 'five', 0.90);
+insert into products (title, price, created) values 
+    ('one', 9.99, '2022-01-07 13:47:07'),
+    ('two', 10.45, '2022-01-07 13:47:08'),
+    ('three', null, '2022-01-07 13:47:09'),
+    ('four', 100, '2022-01-07 13:47:10'),
+    ('five', 0.90,'2022-01-07 13:47:11');
 
 create table unsupported (
     bl boolean[],

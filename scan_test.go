@@ -24,13 +24,14 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type testRows struct {
@@ -108,7 +109,7 @@ func (r *testRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		v := dst.(pgtype.Value)
+		v := dst.(*Value)
 		v.Set(values[i])
 	}
 
@@ -140,7 +141,7 @@ func TestScan(t *testing.T) {
 		{
 			"Scan error",
 			args{
-				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64"},
+				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64", "ts"},
 				[][]interface{}{
 					{1, 2},
 				},
@@ -151,10 +152,10 @@ func TestScan(t *testing.T) {
 		{
 			"All supported",
 			args{
-				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64"},
+				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64", "ts"},
 				[][]interface{}{
-					{true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64)},
-					{false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46)},
+					{true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64), time.Unix(12, 34)},
+					{false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46), time.Unix(56, 78)},
 				},
 			},
 			[]*support.Supported{
@@ -168,6 +169,10 @@ func TestScan(t *testing.T) {
 					Bt:  []byte("Foo bar"),
 					U32: 32,
 					U64: 64,
+					Ts: &timestamppb.Timestamp{
+						Seconds: 12,
+						Nanos:   34,
+					},
 				},
 				{
 					Bl:  false,
@@ -179,6 +184,10 @@ func TestScan(t *testing.T) {
 					Bt:  []byte{},
 					U32: 23,
 					U64: 46,
+					Ts: &timestamppb.Timestamp{
+						Seconds: 56,
+						Nanos:   78,
+					},
 				},
 			},
 			false,
@@ -205,7 +214,7 @@ func TestScan(t *testing.T) {
 	}
 }
 
-func TestScan_unsuported2(t *testing.T) {
+func TestScan_unsuported(t *testing.T) {
 	type args struct {
 		names []string
 		rows  [][]interface{}

@@ -44,7 +44,7 @@ func TestQuery(t *testing.T) {
 			"CTX error",
 			args{
 				testlib.ECTX,
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			nil,
@@ -54,7 +54,7 @@ func TestQuery(t *testing.T) {
 			"Simple query",
 			args{
 				testlib.CTX,
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			[]*support.Simple{
@@ -118,7 +118,7 @@ func TestQueryRow(t *testing.T) {
 			"CTX error",
 			args{
 				testlib.ECTX,
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			nil,
@@ -138,7 +138,7 @@ func TestQueryRow(t *testing.T) {
 			"Simple query",
 			args{
 				testlib.CTX,
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			&support.Simple{Id: 1, Title: "one", Data: "foo bar"},
@@ -197,7 +197,7 @@ func TestQueryStream(t *testing.T) {
 				&testServerStream[*support.Simple]{
 					ctx: testlib.ECTX,
 				},
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			nil,
@@ -210,7 +210,7 @@ func TestQueryStream(t *testing.T) {
 				&testServerStream[*support.Simple]{
 					ctx: testlib.CTX,
 				},
-				"select * from simple_ro;",
+				`select "id", "title", "data" from simple_ro;`,
 				nil,
 			},
 			[]*support.Simple{

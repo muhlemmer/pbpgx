@@ -31,9 +31,9 @@ import (
 )
 
 func ExampleTable_CreateOne() {
-	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "example", nil)
+	tab := crud.NewTable[gen.ProductColumns_Names, *gen.Product, int32]("public", "products", nil)
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, "user=pbpgx_tester host=db port=5432 dbname=pbpgx_tester")
@@ -51,10 +51,11 @@ func ExampleTable_CreateOne() {
 			gen.ProductColumns_id,
 			gen.ProductColumns_title,
 			gen.ProductColumns_price,
+			gen.ProductColumns_created,
 		},
 	}
 
-	record, err := tab.CreateOne(ctx, conn, crud.ParseFields(query, true), query.GetData(), query.GetColumns())
+	record, err := tab.CreateOne(ctx, conn, crud.ParseFields(query.GetData(), true), query.GetData(), query.GetColumns()...)
 	if err != nil {
 		panic(err)
 	}
@@ -62,5 +63,5 @@ func ExampleTable_CreateOne() {
 	out, _ := protojson.Marshal(record)
 	fmt.Println(string(out))
 
-	// {"title":"two","price":10.45}
+	// {"id":"6","title":"Great deal!","price":9.99,"created":"2022-01-07T14:14:38.121500Z"}
 }

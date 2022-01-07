@@ -27,6 +27,7 @@ import (
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestTable_CreateOne(t *testing.T) {
@@ -45,6 +46,10 @@ func TestTable_CreateOne(t *testing.T) {
 				Id:    789,
 				Title: "foo bar",
 				Data:  "Hello World!",
+				Created: &timestamppb.Timestamp{
+					Seconds: 12,
+					Nanos:   34,
+				},
 			},
 			nil,
 			(*support.Simple)(nil),
@@ -57,16 +62,25 @@ func TestTable_CreateOne(t *testing.T) {
 				Id:    789,
 				Title: "foo bar",
 				Data:  "Hello World!",
+				Created: &timestamppb.Timestamp{
+					Seconds: 12,
+					Nanos:   34000,
+				},
 			},
 			[]support.SimpleColumns{
 				support.SimpleColumns_id,
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
+				support.SimpleColumns_created,
 			},
 			&support.Simple{
 				Id:    789,
 				Title: "foo bar",
 				Data:  "Hello World!",
+				Created: &timestamppb.Timestamp{
+					Seconds: 12,
+					Nanos:   34000,
+				},
 			},
 			false,
 		},
@@ -107,13 +121,13 @@ func TestTable_CreateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRwTab.CreateOne(tt.ctx, tx, ParseFields(tt.req, true), tt.req, tt.retCols)
+			got, err := simpleRwTab.CreateOne(tt.ctx, tx, ParseFields(tt.req, true), tt.req, tt.retCols...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Table.CreateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !proto.Equal(got, tt.want) {
-				t.Errorf("Table.CreateReturnOne() = %v, want %v", got, tt.want)
+				t.Errorf("Table.CreateOne() =\n%v\nwant\n%v", got, tt.want)
 			}
 		})
 	}
