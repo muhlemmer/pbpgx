@@ -28,26 +28,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (tab *Table[Col, Record, ID]) updateQuery(data proto.Message, wf query.WhereFunc[Col], skipEmpty bool, returnColumns ...Col) (qs string, cols ColNames) {
+func (tab *Table[Col, Record, ID]) updateQuery(cols ColNames, wf query.WhereFunc[Col], returnColumns ...Col) (qs string) {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	cols = ParseFields(data, skipEmpty)
 	b.Update(tab.schema, tab.table, cols, wf, returnColumns...)
 
-	return b.String(), cols
+	return b.String()
 }
 
 // UpdateOne updates one record in a Table, identified by id, with the contents of the data Message
 // and returns the result in a message of type Record.
 // Each field value in data will be set to a corresponding column,
 // matching on the protobuf fieldname, case sensitive.
-// Empty fields are omitted from the query and will not be modified.
 //
 // If any returnColumns are specified, the returned message will have the fields set as named by returnColumns.
 // If no returnColumns, the returned message will always be nil.
-func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, id ID, data proto.Message, returnColumns ...Col) (record Record, err error) {
-	qs, cols := tab.updateQuery(data, query.WhereID[Col], true, returnColumns...)
+func (tab *Table[Col, Record, ID]) UpdateOne(ctx context.Context, x pbpgx.Executor, cols ColNames, id ID, data proto.Message, returnColumns ...Col) (record Record, err error) {
+	qs := tab.updateQuery(cols, query.WhereID[Col], returnColumns...)
 
 	args, err := tab.columns.ParseArgs(data, cols)
 	if err != nil {

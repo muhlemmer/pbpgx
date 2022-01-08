@@ -144,7 +144,7 @@ func TestTable_UpdateOne(t *testing.T) {
 			}
 			defer tx.Rollback(ctx)
 
-			got, err := simpleRoTab.UpdateOne(testlib.CTX, tx, tt.args.query.GetId(), tt.args.data, tt.args.query.GetColumns()...)
+			got, err := simpleRoTab.UpdateOne(testlib.CTX, tx, ParseFields(tt.args.data, true), tt.args.query.GetId(), tt.args.data, tt.args.query.GetColumns()...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Table.UpdateOne() error = %v, wantErr %v", err, tt.wantErr)
 				return
