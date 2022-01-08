@@ -61,7 +61,7 @@ func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (*Value, error) {
 	}
 
 	if fd.Cardinality() == pr.Repeated {
-		return nil, fmt.Errorf("unsupported type \"%s %s\" for scanning", pr.Repeated, fd.Kind())
+		return nil, fmt.Errorf("unsupported type \"%s %s\"", pr.Repeated, fd.Kind())
 	}
 
 	switch fd.Kind() {
