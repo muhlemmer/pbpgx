@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/muhlemmer/pbpgx"
 	"github.com/muhlemmer/pbpgx/internal/support"
+	"github.com/muhlemmer/pbpgx/internal/value"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -205,7 +205,7 @@ func TestColumns_ParseArgs(t *testing.T) {
 
 			for i := 0; i < len(gotArgs); i++ {
 				var ok bool
-				got := gotArgs[i].(pbpgx.Value).PGValue()
+				got := gotArgs[i].(value.Value).PGValue()
 
 				switch x := got.(type) {
 				case *pgtype.Timestamptz:

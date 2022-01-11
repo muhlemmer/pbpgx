@@ -24,7 +24,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgtype"
-	"github.com/muhlemmer/pbpgx"
+	"github.com/muhlemmer/pbpgx/internal/value"
 	"google.golang.org/protobuf/proto"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -101,7 +101,7 @@ func (columns Columns) ParseArgs(msg proto.Message, colNames ColNames) (args []i
 			return nil, fmt.Errorf("ParseArgs: field %q not in msg %T", name, msg)
 		}
 
-		arg, err := pbpgx.NewValue(fd, columns[name].pgStatus())
+		arg, err := value.New(fd, columns[name].pgStatus())
 		if err != nil {
 			return nil, fmt.Errorf("ParseArgs: %w", err)
 		}

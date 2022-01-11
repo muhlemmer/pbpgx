@@ -17,20 +17,29 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package pbpgx
+package value
 
 import (
-	"testing"
-
+	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func Test_convertIntValueFunc(t *testing.T) {
-	f := convertIntValueFunc[uint32](pr.ValueOfInt32)
-	var u uint32 = 222
-	v := f(u)
+type listValue[T scalar] struct {
+	pgtype.ValueTranscoder
+	fd        pr.FieldDescriptor
+	valueFunc func(T) pr.Value
+}
 
-	if got := v.Interface().(int32); got != 222 {
-		t.Errorf("convertIntValueFunc.f() got: %v, want 222", got)
+func (v *listValue[T]) PGValue() pgtype.Value { return v.ValueTranscoder }
+
+func (v *listValue[T]) SetTo(msg pr.Message) {
+	var list []T
+	v.AssignTo(&list)
+
+	pl := msg.NewField(v.fd).List()
+	for _, elem := range list {
+		pl.Append(v.valueFunc(elem))
 	}
+
+	msg.Set(v.fd, pr.ValueOfList(pl))
 }

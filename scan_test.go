@@ -30,6 +30,7 @@ import (
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/muhlemmer/pbpgx/internal/support"
+	"github.com/muhlemmer/pbpgx/internal/value"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -109,7 +110,7 @@ func (r *testRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		v := dst.(Value)
+		v := dst.(value.Value)
 		v.Set(values[i])
 	}
 

@@ -26,6 +26,7 @@ import (
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/muhlemmer/pbpgx/internal/value"
 	"google.golang.org/protobuf/proto"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -39,7 +40,7 @@ func destinations(pfds pr.FieldDescriptors, pgfs []pgproto3.FieldDescription) ([
 			return nil, fmt.Errorf("unknown field %s", f.Name)
 		}
 
-		v, err := NewValue(pfd, pgtype.Undefined)
+		v, err := value.New(pfd, pgtype.Undefined)
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +82,7 @@ func (s *scanner[M]) scanRow() (M, error) {
 	}
 
 	for _, d := range s.dest {
-		d.(Value).setTo(msg)
+		d.(value.Value).SetTo(msg)
 	}
 
 	return msg.Interface().(M), nil

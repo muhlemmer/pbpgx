@@ -17,114 +17,22 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package pbpgx
+package value
 
 import (
-	"constraints"
 	"fmt"
 
 	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Value interface {
 	pgtype.ValueTranscoder
 	PGValue() pgtype.Value
-	setTo(pr.Message)
+	SetTo(pr.Message)
 }
 
-type signedScalar interface {
-	int32 | int64
-}
-
-type unsignedScalar interface {
-	uint32 | uint64
-}
-
-type scalar interface {
-	signedScalar | unsignedScalar | bool | float32 | float64 | string | []byte
-}
-
-type scalarValue[T scalar] struct {
-	pgtype.ValueTranscoder
-	fd        pr.FieldDescriptor
-	valueFunc func(T) pr.Value
-}
-
-func (v *scalarValue[T]) PGValue() pgtype.Value { return v.ValueTranscoder }
-
-func (v *scalarValue[T]) setTo(msg pr.Message) {
-	if pgv, ok := v.Get().(T); ok {
-		msg.Set(v.fd, v.valueFunc(pgv))
-	}
-}
-
-type listValue[T scalar] struct {
-	pgtype.ValueTranscoder
-	fd        pr.FieldDescriptor
-	valueFunc func(T) pr.Value
-}
-
-func (v *listValue[T]) PGValue() pgtype.Value { return v.ValueTranscoder }
-
-func (v *listValue[T]) setTo(msg pr.Message) {
-	var list []T
-	v.AssignTo(&list)
-
-	pl := msg.NewField(v.fd).List()
-	for _, elem := range list {
-		pl.Append(v.valueFunc(elem))
-	}
-
-	msg.Set(v.fd, pr.ValueOfList(pl))
-}
-
-// convertIntValueFunc returns a function which calls passed Value function
-// with value of A converted the B.
-func convertIntValueFunc[A, B constraints.Integer](f func(B) pr.Value) func(a A) pr.Value {
-	return func(a A) pr.Value {
-		return f(B(a))
-	}
-}
-
-const (
-	SupportedTimestamp = "google.protobuf.Timestamp"
-)
-
-type timestampValue struct {
-	pgtype.Timestamptz
-	fd pr.FieldDescriptor
-}
-
-func (v *timestampValue) PGValue() pgtype.Value { return &v.Timestamptz }
-
-func (v *timestampValue) setTo(msg pr.Message) {
-	msg.Set(v.fd, pr.ValueOfMessage(
-		timestamppb.New(v.Time).ProtoReflect(),
-	))
-}
-
-type timestampArrayValue struct {
-	pgtype.TimestamptzArray
-	fd pr.FieldDescriptor
-}
-
-func (v *timestampArrayValue) PGValue() pgtype.Value { return &v.TimestamptzArray }
-
-func (v *timestampArrayValue) setTo(msg pr.Message) {
-	pl := msg.NewField(v.fd).List()
-
-	for _, x := range v.Elements {
-		pl.Append(pr.ValueOfMessage(
-			timestamppb.New(x.Time).ProtoReflect(),
-		))
-	}
-
-	msg.Set(v.fd, pr.ValueOfList(pl))
-}
-
-func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
+func New(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
 	repeated := fd.Cardinality() == pr.Repeated
 
 	switch fd.Kind() {
@@ -197,7 +105,7 @@ func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) 
 		switch name {
 		case SupportedTimestamp:
 			if repeated {
-				v = &timestampArrayValue{fd: fd}
+				v = &timestampListValue{fd: fd}
 			} else {
 				v = &timestampValue{fd: fd}
 			}
