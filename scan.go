@@ -81,12 +81,7 @@ func (s *scanner[M]) scanRow() (M, error) {
 	}
 
 	for _, d := range s.dest {
-		v := d.(*Value)
-		pv := v.value()
-
-		if pv.IsValid() {
-			msg.Set(v.fieldDesc, pv)
-		}
+		d.(Value).setTo(msg)
 	}
 
 	return msg.Interface().(M), nil

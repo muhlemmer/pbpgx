@@ -171,9 +171,7 @@ func TestColumns_ParseArgs(t *testing.T) {
 			"unsupported error",
 			nil,
 			args{
-				msg: &support.Unsupported{
-					Bl: []bool{true, false},
-				},
+				msg:  &support.Unsupported{Sup: &support.Supported{Bl: true}},
 				cols: []string{"bl"},
 			},
 			nil,
@@ -207,7 +205,7 @@ func TestColumns_ParseArgs(t *testing.T) {
 
 			for i := 0; i < len(gotArgs); i++ {
 				var ok bool
-				got := gotArgs[i].(*pbpgx.Value).ValueTranscoder
+				got := gotArgs[i].(pbpgx.Value).PGValue()
 
 				switch x := got.(type) {
 				case *pgtype.Timestamptz:

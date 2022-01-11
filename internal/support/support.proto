@@ -37,20 +37,22 @@ message Supported {
     uint32 u32 = 8;
     uint64 u64 = 9;
     google.protobuf.Timestamp ts = 10;
+    
+    repeated bool r_bl = 11;
+    repeated int32 r_i32 = 12;
+    repeated int64 r_i64 = 13;
+    repeated float r_f = 14;
+    repeated double r_d = 15;
+    repeated string r_s = 16;
+    repeated uint32 r_u32 = 17;
+    repeated bytes r_bt = 18;
+    repeated uint64 r_u64 = 19;
+    repeated google.protobuf.Timestamp r_ts = 20;
 }
 
 // Unsupported destination types (for now)
 message Unsupported {
-    repeated bool bl = 1;
-    repeated int32 i32 = 2;
-    repeated int64 i64 = 3;
-    repeated float f = 4;
-    repeated double d = 5;
-    repeated string s = 6;
-    repeated bytes bt = 7;
-    repeated uint32 u32 = 8;
-    repeated uint64 u64 = 9;
-    Supported sup = 10; // Nested messages
+    Supported sup = 1; // Nested messages
 }
 
 // Simple is used for unit testing

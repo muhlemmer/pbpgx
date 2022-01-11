@@ -109,7 +109,7 @@ func (r *testRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		v := dst.(*Value)
+		v := dst.(Value)
 		v.Set(values[i])
 	}
 
@@ -152,10 +152,22 @@ func TestScan(t *testing.T) {
 		{
 			"All supported",
 			args{
-				[]string{"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64", "ts"},
+				[]string{
+					"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64", "ts",
+					"r_bl", "r_i32", "r_i64", "r_f", "r_d", "r_s",
+					"r_bt", "r_u32", "r_u64", "r_ts",
+				},
 				[][]interface{}{
-					{true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64), time.Unix(12, 34)},
-					{false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46), time.Unix(56, 78)},
+					{
+						true, int32(1), int64(2), float32(1.1), float64(2.2), "Hello World!", []byte("Foo bar"), uint32(32), uint64(64), time.Unix(12, 34),
+						[]bool{true, false}, []int32{1, -1}, []int64{2, -2}, []float32{1.1, -1.1}, []float64{2.2, -2.2}, []string{"Hello", "World!"},
+						[][]byte{[]byte("foo"), []byte("bar")}, []uint32{32, 30}, []uint64{64, 60}, []time.Time{time.Unix(12, 34), time.Unix(34, 12)},
+					},
+					{
+						false, int32(3), int64(4), float32(3.1), float64(4.2), "Bye World!", []byte{}, uint32(23), uint64(46), time.Unix(56, 78),
+						[]bool{false, true}, []int32{-1, 1}, []int64{-2, 2}, []float32{-1.1, 1.1}, []float64{-2.2, 2.2}, []string{"Bye", "World!"},
+						[][]byte{[]byte("bar"), []byte("foo")}, []uint32{30, 32}, []uint64{60, 64}, []time.Time{time.Unix(56, 78), time.Unix(78, 56)},
+					},
 				},
 			},
 			[]*support.Supported{
@@ -173,6 +185,25 @@ func TestScan(t *testing.T) {
 						Seconds: 12,
 						Nanos:   34,
 					},
+					RBl:  []bool{true, false},
+					RI32: []int32{1, -1},
+					RI64: []int64{2, -2},
+					RF:   []float32{1.1, -1.1},
+					RD:   []float64{2.2, -2.2},
+					RS:   []string{"Hello", "World!"},
+					RBt:  [][]byte{[]byte("foo"), []byte("bar")},
+					RU32: []uint32{32, 30},
+					RU64: []uint64{64, 60},
+					RTs: []*timestamppb.Timestamp{
+						{
+							Seconds: 12,
+							Nanos:   34,
+						},
+						{
+							Seconds: 34,
+							Nanos:   12,
+						},
+					},
 				},
 				{
 					Bl:  false,
@@ -187,6 +218,25 @@ func TestScan(t *testing.T) {
 					Ts: &timestamppb.Timestamp{
 						Seconds: 56,
 						Nanos:   78,
+					},
+					RBl:  []bool{false, true},
+					RI32: []int32{-1, 1},
+					RI64: []int64{-2, 2},
+					RF:   []float32{-1.1, 1.1},
+					RD:   []float64{-2.2, 2.2},
+					RS:   []string{"Bye", "World!"},
+					RBt:  [][]byte{[]byte("bar"), []byte("foo")},
+					RU32: []uint32{30, 32},
+					RU64: []uint64{60, 64},
+					RTs: []*timestamppb.Timestamp{
+						{
+							Seconds: 56,
+							Nanos:   78,
+						},
+						{
+							Seconds: 78,
+							Nanos:   56,
+						},
 					},
 				},
 			},

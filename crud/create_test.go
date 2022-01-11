@@ -87,7 +87,7 @@ func TestTable_CreateOne(t *testing.T) {
 		{
 			"unsupported error",
 			testlib.CTX,
-			&support.Unsupported{Bl: []bool{true, false}},
+			&support.Unsupported{Sup: &support.Supported{Bl: true}},
 			[]support.SimpleColumns{
 				support.SimpleColumns_id,
 				support.SimpleColumns_title,
@@ -257,7 +257,7 @@ func TestTable_Create(t *testing.T) {
 			"unsupported error",
 			ColNames{"bl"},
 			[]proto.Message{
-				&support.Unsupported{Bl: []bool{true, false}},
+				&support.Unsupported{Sup: &support.Supported{Bl: true}},
 			},
 			nil,
 			nil,

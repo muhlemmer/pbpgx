@@ -116,7 +116,7 @@ func TestTable_UpdateOne(t *testing.T) {
 						support.SimpleColumns_id,
 					},
 				},
-				&support.Unsupported{Bl: []bool{true, false}},
+				&support.Unsupported{Sup: &support.Supported{Bl: true}},
 			},
 			nil,
 			true,

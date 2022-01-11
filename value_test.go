@@ -20,10 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package pbpgx
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -34,61 +32,5 @@ func Test_convertIntValueFunc(t *testing.T) {
 
 	if got := v.Interface().(int32); got != 222 {
 		t.Errorf("convertIntValueFunc.f() got: %v, want 222", got)
-	}
-}
-
-func Test_Value_value(t *testing.T) {
-	type fields struct {
-		ValueTranscoder pgtype.ValueTranscoder
-		valueFunc       func(interface{}) pr.Value
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   pr.Value
-	}{
-		{
-			"test",
-			fields{
-				ValueTranscoder: &pgtype.Float4{
-					Float:  1.1,
-					Status: pgtype.Present,
-				},
-				valueFunc: pr.ValueOf,
-			},
-			pr.ValueOfFloat32(1.1),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &Value{
-				ValueTranscoder: tt.fields.ValueTranscoder,
-				valueFunc:       tt.fields.valueFunc,
-			}
-			if got := d.value(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("pgKind.value() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_timeStampValue(t *testing.T) {
-	tests := []struct {
-		name string
-		x    interface{}
-		want pr.Value
-	}{
-		{
-			"nil",
-			nil,
-			pr.Value{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := timeStampValue(tt.x); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("timeStampValue() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }

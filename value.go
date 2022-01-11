@@ -22,92 +22,185 @@ package pbpgx
 import (
 	"constraints"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// convertIntValueFunc returns a function which calls passed function
-// with src asserted to the type of A and then converted to the type of B.
-func convertIntValueFunc[A, B constraints.Integer](f func(B) pr.Value) func(interface{}) pr.Value {
-	return func(src interface{}) pr.Value {
-		v, _ := src.(A)
-		return f(B(v))
-	}
-}
-
-func assertValueFunc[T any](f func(T) pr.Value) func(interface{}) pr.Value {
-	return func(src interface{}) pr.Value {
-		v, _ := src.(T)
-		return f(v)
-	}
-}
-
-type Value struct {
+type Value interface {
 	pgtype.ValueTranscoder
-	fieldDesc pr.FieldDescriptor
-	valueFunc func(interface{}) pr.Value
+	PGValue() pgtype.Value
+	setTo(pr.Message)
 }
 
-func (d *Value) value() pr.Value {
-	return d.valueFunc(d.Get())
+type signedScalar interface {
+	int32 | int64
 }
 
-func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (*Value, error) {
-	d := &Value{
-		fieldDesc: fd,
+type unsignedScalar interface {
+	uint32 | uint64
+}
+
+type scalar interface {
+	signedScalar | unsignedScalar | bool | float32 | float64 | string | []byte
+}
+
+type scalarValue[T scalar] struct {
+	pgtype.ValueTranscoder
+	fd        pr.FieldDescriptor
+	valueFunc func(T) pr.Value
+}
+
+func (v *scalarValue[T]) PGValue() pgtype.Value { return v.ValueTranscoder }
+
+func (v *scalarValue[T]) setTo(msg pr.Message) {
+	if pgv, ok := v.Get().(T); ok {
+		msg.Set(v.fd, v.valueFunc(pgv))
+	}
+}
+
+type listValue[T scalar] struct {
+	pgtype.ValueTranscoder
+	fd        pr.FieldDescriptor
+	valueFunc func(T) pr.Value
+}
+
+func (v *listValue[T]) PGValue() pgtype.Value { return v.ValueTranscoder }
+
+func (v *listValue[T]) setTo(msg pr.Message) {
+	var list []T
+	v.AssignTo(&list)
+
+	pl := msg.NewField(v.fd).List()
+	for _, elem := range list {
+		pl.Append(v.valueFunc(elem))
 	}
 
-	if fd.Cardinality() == pr.Repeated {
-		return nil, fmt.Errorf("unsupported type \"%s %s\"", pr.Repeated, fd.Kind())
+	msg.Set(v.fd, pr.ValueOfList(pl))
+}
+
+// convertIntValueFunc returns a function which calls passed Value function
+// with value of A converted the B.
+func convertIntValueFunc[A, B constraints.Integer](f func(B) pr.Value) func(a A) pr.Value {
+	return func(a A) pr.Value {
+		return f(B(a))
 	}
+}
+
+const (
+	SupportedTimestamp = "google.protobuf.Timestamp"
+)
+
+type timestampValue struct {
+	pgtype.Timestamptz
+	fd pr.FieldDescriptor
+}
+
+func (v *timestampValue) PGValue() pgtype.Value { return &v.Timestamptz }
+
+func (v *timestampValue) setTo(msg pr.Message) {
+	msg.Set(v.fd, pr.ValueOfMessage(
+		timestamppb.New(v.Time).ProtoReflect(),
+	))
+}
+
+type timestampArrayValue struct {
+	pgtype.TimestamptzArray
+	fd pr.FieldDescriptor
+}
+
+func (v *timestampArrayValue) PGValue() pgtype.Value { return &v.TimestamptzArray }
+
+func (v *timestampArrayValue) setTo(msg pr.Message) {
+	pl := msg.NewField(v.fd).List()
+
+	for _, x := range v.Elements {
+		pl.Append(pr.ValueOfMessage(
+			timestamppb.New(x.Time).ProtoReflect(),
+		))
+	}
+
+	msg.Set(v.fd, pr.ValueOfList(pl))
+}
+
+func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
+	repeated := fd.Cardinality() == pr.Repeated
 
 	switch fd.Kind() {
 	case pr.BoolKind:
-		d.ValueTranscoder = &pgtype.Bool{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfBool)
+		if repeated {
+			v = &listValue[bool]{fd: fd, ValueTranscoder: &pgtype.BoolArray{Status: status}, valueFunc: pr.ValueOfBool}
+		} else {
+			v = &scalarValue[bool]{fd: fd, ValueTranscoder: &pgtype.Bool{Status: status}, valueFunc: pr.ValueOfBool}
+		}
 
 	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
-		d.ValueTranscoder = &pgtype.Int4{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfInt32)
+		if repeated {
+			v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: pr.ValueOfInt32}
+		} else {
+			v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: pr.ValueOfInt32}
+		}
 
 	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
-		d.ValueTranscoder = &pgtype.Int8{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfInt64)
+		if repeated {
+			v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: pr.ValueOfInt64}
+		} else {
+			v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: pr.ValueOfInt64}
+		}
 
 	case pr.FloatKind:
-		d.ValueTranscoder = &pgtype.Float4{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfFloat32)
+		if repeated {
+			v = &listValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4Array{Status: status}, valueFunc: pr.ValueOfFloat32}
+		} else {
+			v = &scalarValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4{Status: status}, valueFunc: pr.ValueOfFloat32}
+		}
 
 	case pr.DoubleKind:
-		d.ValueTranscoder = &pgtype.Float8{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfFloat64)
+		if repeated {
+			v = &listValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8Array{Status: status}, valueFunc: pr.ValueOfFloat64}
+		} else {
+			v = &scalarValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8{Status: status}, valueFunc: pr.ValueOfFloat64}
+		}
 
 	case pr.StringKind:
-		d.ValueTranscoder = &pgtype.Text{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfString)
+		if repeated {
+			v = &listValue[string]{fd: fd, ValueTranscoder: &pgtype.TextArray{Status: status}, valueFunc: pr.ValueOfString}
+		} else {
+			v = &scalarValue[string]{fd: fd, ValueTranscoder: &pgtype.Text{Status: status}, valueFunc: pr.ValueOfString}
+		}
 
 	case pr.BytesKind:
-		d.ValueTranscoder = &pgtype.Bytea{Status: status}
-		d.valueFunc = assertValueFunc(pr.ValueOfBytes)
+		if repeated {
+			v = &listValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.ByteaArray{Status: status}, valueFunc: pr.ValueOfBytes}
+		} else {
+			v = &scalarValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.Bytea{Status: status}, valueFunc: pr.ValueOfBytes}
+		}
 
 	case pr.Uint32Kind, pr.Fixed32Kind:
-		d.ValueTranscoder = &pgtype.Int4{Status: status}
-		d.valueFunc = convertIntValueFunc[int32](pr.ValueOfUint32)
+		if repeated {
+			v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
+		} else {
+			v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
+		}
 
 	case pr.Uint64Kind, pr.Fixed64Kind:
-		d.ValueTranscoder = &pgtype.Int8{Status: status}
-		d.valueFunc = convertIntValueFunc[int64](pr.ValueOfUint64)
+		if repeated {
+			v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
+		} else {
+			v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
+		}
 
 	case pr.MessageKind:
 		name := fd.Message().FullName()
 
 		switch name {
 		case SupportedTimestamp:
-			d.ValueTranscoder = &pgtype.Timestamptz{Status: status}
-			d.valueFunc = timeStampValue
+			if repeated {
+				v = &timestampArrayValue{fd: fd}
+			} else {
+				v = &timestampValue{fd: fd}
+			}
 
 		default:
 			return nil, fmt.Errorf("unsupported message type %q", name)
@@ -117,19 +210,5 @@ func NewValue(fd pr.FieldDescriptor, status pgtype.Status) (*Value, error) {
 		return nil, fmt.Errorf("unsupported type %q", fd.Kind())
 	}
 
-	return d, nil
-}
-
-const (
-	SupportedTimestamp = "google.protobuf.Timestamp"
-)
-
-func timeStampValue(x interface{}) pr.Value {
-	if x == nil {
-		return pr.ValueOf(x)
-	}
-
-	return pr.ValueOfMessage(
-		timestamppb.New(x.(time.Time)).ProtoReflect(),
-	)
+	return v, nil
 }
