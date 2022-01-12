@@ -21,6 +21,7 @@ package value
 
 import (
 	"constraints"
+	"fmt"
 
 	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
@@ -58,4 +59,40 @@ func convertIntValueFunc[A, B constraints.Integer](f func(B) pr.Value) func(a A)
 	return func(a A) pr.Value {
 		return f(B(a))
 	}
+}
+
+func newScalarValue(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
+	switch fd.Kind() {
+	case pr.BoolKind:
+		v = &scalarValue[bool]{fd: fd, ValueTranscoder: &pgtype.Bool{Status: status}, valueFunc: pr.ValueOfBool}
+
+	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
+		v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: pr.ValueOfInt32}
+
+	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
+		v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: pr.ValueOfInt64}
+
+	case pr.FloatKind:
+		v = &scalarValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4{Status: status}, valueFunc: pr.ValueOfFloat32}
+
+	case pr.DoubleKind:
+		v = &scalarValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8{Status: status}, valueFunc: pr.ValueOfFloat64}
+
+	case pr.StringKind:
+		v = &scalarValue[string]{fd: fd, ValueTranscoder: &pgtype.Text{Status: status}, valueFunc: pr.ValueOfString}
+
+	case pr.BytesKind:
+		v = &scalarValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.Bytea{Status: status}, valueFunc: pr.ValueOfBytes}
+
+	case pr.Uint32Kind, pr.Fixed32Kind:
+		v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
+
+	case pr.Uint64Kind, pr.Fixed64Kind:
+		v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
+
+	default:
+		return nil, fmt.Errorf("unsupported type %q", fd.Kind())
+	}
+
+	return v, nil
 }

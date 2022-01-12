@@ -50,9 +50,13 @@ message Supported {
     repeated google.protobuf.Timestamp r_ts = 20;
 }
 
-// Unsupported destination types (for now)
+// Unsupported scan destination types (for now)
 message Unsupported {
-    Supported sup = 1; // Nested messages
+    Supported sup = 1; // Nested, unregisterd messages
+    map<string, int32> mp = 2;
+    map<int32, google.protobuf.Timestamp> ts_mp = 3;
+    SimpleColumns en = 4;
+    repeated SimpleColumns r_en = 5;
 }
 
 // Simple is used for unit testing

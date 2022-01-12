@@ -20,6 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package value
 
 import (
+	"fmt"
+
 	"github.com/jackc/pgtype"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -42,4 +44,39 @@ func (v *listValue[T]) SetTo(msg pr.Message) {
 	}
 
 	msg.Set(v.fd, pr.ValueOfList(pl))
+}
+func newlistValue(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
+	switch fd.Kind() {
+	case pr.BoolKind:
+		v = &listValue[bool]{fd: fd, ValueTranscoder: &pgtype.BoolArray{Status: status}, valueFunc: pr.ValueOfBool}
+
+	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
+		v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: pr.ValueOfInt32}
+
+	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
+		v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: pr.ValueOfInt64}
+
+	case pr.FloatKind:
+		v = &listValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4Array{Status: status}, valueFunc: pr.ValueOfFloat32}
+
+	case pr.DoubleKind:
+		v = &listValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8Array{Status: status}, valueFunc: pr.ValueOfFloat64}
+
+	case pr.StringKind:
+		v = &listValue[string]{fd: fd, ValueTranscoder: &pgtype.TextArray{Status: status}, valueFunc: pr.ValueOfString}
+
+	case pr.BytesKind:
+		v = &listValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.ByteaArray{Status: status}, valueFunc: pr.ValueOfBytes}
+
+	case pr.Uint32Kind, pr.Fixed32Kind:
+		v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
+
+	case pr.Uint64Kind, pr.Fixed64Kind:
+		v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
+
+	default:
+		return nil, fmt.Errorf("unsupported type %q", fd.Kind())
+	}
+
+	return v, nil
 }

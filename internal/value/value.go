@@ -26,6 +26,34 @@ import (
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 
+type Constructor func(pr.FieldDescriptor, pgtype.Status) (Value, error)
+
+type register struct {
+	messages map[pr.FullName]Constructor
+}
+
+func (r *register) addMessage(fullname pr.FullName, c Constructor) {
+	if r.messages == nil {
+		r.messages = map[pr.FullName]Constructor{}
+	}
+
+	r.messages[fullname] = c
+}
+
+func (r *register) newMessageValue(name pr.FullName, fd pr.FieldDescriptor, status pgtype.Status) (Value, error) {
+	if c, ok := r.messages[name]; ok {
+		return c(fd, status)
+	}
+
+	return nil, fmt.Errorf("value: message type %q not registered", name)
+}
+
+var registered register
+
+func RegisterMessage(name pr.FullName, c Constructor) {
+	registered.addMessage(name, c)
+}
+
 type Value interface {
 	pgtype.ValueTranscoder
 	PGValue() pgtype.Value
@@ -33,90 +61,13 @@ type Value interface {
 }
 
 func New(fd pr.FieldDescriptor, status pgtype.Status) (v Value, err error) {
-	repeated := fd.Cardinality() == pr.Repeated
-
-	switch fd.Kind() {
-	case pr.BoolKind:
-		if repeated {
-			v = &listValue[bool]{fd: fd, ValueTranscoder: &pgtype.BoolArray{Status: status}, valueFunc: pr.ValueOfBool}
-		} else {
-			v = &scalarValue[bool]{fd: fd, ValueTranscoder: &pgtype.Bool{Status: status}, valueFunc: pr.ValueOfBool}
-		}
-
-	case pr.Int32Kind, pr.Sint32Kind, pr.Sfixed32Kind:
-		if repeated {
-			v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: pr.ValueOfInt32}
-		} else {
-			v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: pr.ValueOfInt32}
-		}
-
-	case pr.Int64Kind, pr.Sint64Kind, pr.Sfixed64Kind:
-		if repeated {
-			v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: pr.ValueOfInt64}
-		} else {
-			v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: pr.ValueOfInt64}
-		}
-
-	case pr.FloatKind:
-		if repeated {
-			v = &listValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4Array{Status: status}, valueFunc: pr.ValueOfFloat32}
-		} else {
-			v = &scalarValue[float32]{fd: fd, ValueTranscoder: &pgtype.Float4{Status: status}, valueFunc: pr.ValueOfFloat32}
-		}
-
-	case pr.DoubleKind:
-		if repeated {
-			v = &listValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8Array{Status: status}, valueFunc: pr.ValueOfFloat64}
-		} else {
-			v = &scalarValue[float64]{fd: fd, ValueTranscoder: &pgtype.Float8{Status: status}, valueFunc: pr.ValueOfFloat64}
-		}
-
-	case pr.StringKind:
-		if repeated {
-			v = &listValue[string]{fd: fd, ValueTranscoder: &pgtype.TextArray{Status: status}, valueFunc: pr.ValueOfString}
-		} else {
-			v = &scalarValue[string]{fd: fd, ValueTranscoder: &pgtype.Text{Status: status}, valueFunc: pr.ValueOfString}
-		}
-
-	case pr.BytesKind:
-		if repeated {
-			v = &listValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.ByteaArray{Status: status}, valueFunc: pr.ValueOfBytes}
-		} else {
-			v = &scalarValue[[]byte]{fd: fd, ValueTranscoder: &pgtype.Bytea{Status: status}, valueFunc: pr.ValueOfBytes}
-		}
-
-	case pr.Uint32Kind, pr.Fixed32Kind:
-		if repeated {
-			v = &listValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4Array{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
-		} else {
-			v = &scalarValue[int32]{fd: fd, ValueTranscoder: &pgtype.Int4{Status: status}, valueFunc: convertIntValueFunc[int32](pr.ValueOfUint32)}
-		}
-
-	case pr.Uint64Kind, pr.Fixed64Kind:
-		if repeated {
-			v = &listValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8Array{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
-		} else {
-			v = &scalarValue[int64]{fd: fd, ValueTranscoder: &pgtype.Int8{Status: status}, valueFunc: convertIntValueFunc[int64](pr.ValueOfUint64)}
-		}
-
-	case pr.MessageKind:
-		name := fd.Message().FullName()
-
-		switch name {
-		case SupportedTimestamp:
-			if repeated {
-				v = &timestampListValue{fd: fd}
-			} else {
-				v = &timestampValue{fd: fd}
-			}
-
-		default:
-			return nil, fmt.Errorf("unsupported message type %q", name)
-		}
-
-	default:
-		return nil, fmt.Errorf("unsupported type %q", fd.Kind())
+	if msg := fd.Message(); msg != nil {
+		return registered.newMessageValue(msg.FullName(), fd, status)
 	}
 
-	return v, nil
+	if fd.IsList() {
+		return newlistValue(fd, status)
+	}
+
+	return newScalarValue(fd, status)
 }

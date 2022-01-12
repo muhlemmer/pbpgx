@@ -25,10 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const (
-	SupportedTimestamp = "google.protobuf.Timestamp"
-)
-
 type timestampValue struct {
 	pgtype.Timestamptz
 	fd pr.FieldDescriptor
@@ -59,4 +55,20 @@ func (v *timestampListValue) SetTo(msg pr.Message) {
 	}
 
 	msg.Set(v.fd, pr.ValueOfList(pl))
+}
+
+func newTimestampValue(fd pr.FieldDescriptor, status pgtype.Status) (Value, error) {
+	if fd.IsList() {
+		return &timestampListValue{pgtype.TimestamptzArray{Status: status}, fd}, nil
+	}
+
+	return &timestampValue{pgtype.Timestamptz{Status: status}, fd}, nil
+}
+
+const (
+	SupportedTimestamp = "google.protobuf.Timestamp"
+)
+
+func init() {
+	RegisterMessage(SupportedTimestamp, newTimestampValue)
 }
