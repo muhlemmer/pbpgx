@@ -25,6 +25,7 @@ import (
 
 	"github.com/muhlemmer/pbpgx/internal/support"
 	"github.com/muhlemmer/pbpgx/internal/testlib"
+	"github.com/muhlemmer/pbpgx/query"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -77,6 +78,7 @@ func TestTable_ReadAll(t *testing.T) {
 	tests := []struct {
 		name    string
 		ctx     context.Context
+		orderBy query.OrderWriter[support.SimpleColumns]
 		want    []*support.Simple
 		wantErr bool
 	}{
@@ -84,11 +86,13 @@ func TestTable_ReadAll(t *testing.T) {
 			"context error",
 			testlib.ECTX,
 			nil,
+			nil,
 			true,
 		},
 		{
 			"success",
 			testlib.CTX,
+			nil,
 			[]*support.Simple{
 				{
 					Title: "one",
@@ -114,7 +118,7 @@ func TestTable_ReadAll(t *testing.T) {
 			got, err := simpleRoTab.ReadAll(tt.ctx, testlib.ConnPool, 4, []support.SimpleColumns{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
-			})
+			}, tt.orderBy)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Table.ReadAll() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -136,6 +140,7 @@ func TestTable_ReadList(t *testing.T) {
 	tests := []struct {
 		name    string
 		ctx     context.Context
+		orderBy query.OrderWriter[support.SimpleColumns]
 		want    []*support.Simple
 		wantErr bool
 	}{
@@ -143,23 +148,25 @@ func TestTable_ReadList(t *testing.T) {
 			"context error",
 			testlib.ECTX,
 			nil,
+			nil,
 			true,
 		},
 		{
 			"success",
 			testlib.CTX,
+			query.Order(query.Descending, support.SimpleColumns_id),
 			[]*support.Simple{
 				{
-					Title: "one",
-					Data:  "foo bar",
+					Title: "five",
+					Data:  "five is a four letter word",
 				},
 				{
 					Title: "four",
 					Data:  "hello world",
 				},
 				{
-					Title: "five",
-					Data:  "five is a four letter word",
+					Title: "one",
+					Data:  "foo bar",
 				},
 			},
 			false,
@@ -171,7 +178,7 @@ func TestTable_ReadList(t *testing.T) {
 			got, err := simpleRoTab.ReadList(tt.ctx, testlib.ConnPool, []int32{1, 4, 5}, []support.SimpleColumns{
 				support.SimpleColumns_title,
 				support.SimpleColumns_data,
-			})
+			}, tt.orderBy)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Table.ReadList() error = %v, wantErr %v", err, tt.wantErr)
 			}

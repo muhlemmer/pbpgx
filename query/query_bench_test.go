@@ -55,27 +55,33 @@ func BenchmarkBuilder_Insert(b *testing.B) {
 func BenchmarkBuilder_Select(b *testing.B) {
 	type args struct {
 		schema, table string
-		columns       []ColName
-		wf            WhereFunc[ColName]
+		columns       []support.SimpleColumns
+		wf            WhereFunc[support.SimpleColumns]
+		orderBy       OrderWriter[support.SimpleColumns]
 		limit         int64
 	}
 
 	a := args{
 		schema: "public",
 		table:  "simple",
-		columns: []ColName{
+		columns: []support.SimpleColumns{
 			support.SimpleColumns_title,
 			support.SimpleColumns_data,
 		},
-		wf:    WhereID[ColName],
+		wf: WhereID[support.SimpleColumns],
+		orderBy: Order(
+			Ascending,
+			support.SimpleColumns_title,
+			support.SimpleColumns_id,
+		),
 		limit: 1,
 	}
 
-	var bldr Builder[ColName]
+	var bldr Builder[support.SimpleColumns]
 
 	for i := 0; i < b.N; i++ {
 		bldr.Grow(bldr.lastCap)
-		bldr.Select(a.schema, a.table, a.columns, a.wf, a.limit)
+		bldr.Select(a.schema, a.table, a.columns, a.wf, a.orderBy, a.limit)
 		bldr.Reset()
 	}
 }

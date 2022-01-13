@@ -213,8 +213,9 @@ func TestBuilder_Insert(t *testing.T) {
 func TestBuilder_Select(t *testing.T) {
 	type args struct {
 		schema, table string
-		columns       []ColName
-		wf            WhereFunc[ColName]
+		columns       []support.SimpleColumns
+		wf            WhereFunc[support.SimpleColumns]
+		orderBy       OrderWriter[support.SimpleColumns]
 		limit         int64
 	}
 
@@ -228,11 +229,11 @@ func TestBuilder_Select(t *testing.T) {
 			args{
 				schema: "public",
 				table:  "simple",
-				columns: []ColName{
+				columns: []support.SimpleColumns{
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
-				wf:    WhereID[ColName],
+				wf:    WhereID[support.SimpleColumns],
 				limit: 1,
 			},
 			`SELECT "title", "data" FROM "public"."simple" WHERE "id" = $1 LIMIT 1;`,
@@ -242,7 +243,7 @@ func TestBuilder_Select(t *testing.T) {
 			args{
 				schema: "public",
 				table:  "simple",
-				columns: []ColName{
+				columns: []support.SimpleColumns{
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
@@ -252,24 +253,79 @@ func TestBuilder_Select(t *testing.T) {
 			`SELECT "title", "data" FROM "public"."simple";`,
 		},
 		{
+			"select all, with columns, ordered Ascending",
+			args{
+				schema: "public",
+				table:  "simple",
+				columns: []support.SimpleColumns{
+					support.SimpleColumns_title,
+					support.SimpleColumns_data,
+				},
+				wf: nil,
+				orderBy: Order(
+					Ascending,
+					support.SimpleColumns_title,
+					support.SimpleColumns_id,
+				),
+				limit: 0,
+			},
+			`SELECT "title", "data" FROM "public"."simple" ORDER BY "title", "id" ASC;`,
+		},
+		{
 			"select list, with columns",
 			args{
 				schema: "public",
 				table:  "simple",
-				columns: []ColName{
+				columns: []support.SimpleColumns{
 					support.SimpleColumns_title,
 					support.SimpleColumns_data,
 				},
-				wf:    WhereIDInFunc[ColName](3),
+				wf:    WhereIDInFunc[support.SimpleColumns](3),
 				limit: 0,
 			},
 			`SELECT "title", "data" FROM "public"."simple" WHERE "id" IN ($1, $2, $3);`,
 		},
+		{
+			"select list, with columns, order asc",
+			args{
+				schema: "public",
+				table:  "simple",
+				columns: []support.SimpleColumns{
+					support.SimpleColumns_title,
+					support.SimpleColumns_data,
+				},
+				wf: WhereIDInFunc[support.SimpleColumns](3),
+				orderBy: Order(
+					Ascending,
+					support.SimpleColumns_id,
+				),
+				limit: 0,
+			},
+			`SELECT "title", "data" FROM "public"."simple" WHERE "id" IN ($1, $2, $3) ORDER BY "id" ASC;`,
+		},
+		{
+			"select list, with columns, order desc",
+			args{
+				schema: "public",
+				table:  "simple",
+				columns: []support.SimpleColumns{
+					support.SimpleColumns_title,
+					support.SimpleColumns_data,
+				},
+				wf: WhereIDInFunc[support.SimpleColumns](3),
+				orderBy: Order(
+					Descending,
+					support.SimpleColumns_id,
+				),
+				limit: 0,
+			},
+			`SELECT "title", "data" FROM "public"."simple" WHERE "id" IN ($1, $2, $3) ORDER BY "id" DESC;`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &Builder[ColName]{}
-			b.Select(tt.args.schema, tt.args.table, tt.args.columns, tt.args.wf, tt.args.limit)
+			b := &Builder[support.SimpleColumns]{}
+			b.Select(tt.args.schema, tt.args.table, tt.args.columns, tt.args.wf, tt.args.orderBy, tt.args.limit)
 
 			if got := b.String(); got != tt.want {
 				t.Errorf("Builder.Select() =\n%v\nwant\n%v", got, tt.want)

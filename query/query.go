@@ -131,11 +131,13 @@ func (b *Builder[Col]) Insert(schema, table string, insertColumns []string, retu
 
 // Select builds a select query.
 // The WHERE clause must be written by the passed WhereFunc, which will not be called if nil.
+// The ORDER By clause is written when orderBy is not nil.
 // The LIMIT clause is only written when greater than 0.
-//   SELECT "id", "title", "price" FROM "public"."products" WHERE "id" = $1 LIMIT 1;
-func (b *Builder[Col]) Select(schema, table string, columns []Col, wf WhereFunc[Col], limit int64) {
+//   SELECT "id", "title", "price" FROM "public"."products" WHERE "id" = $1 ORDER BY "id" LIMIT 1;
+func (b *Builder[Col]) Select(schema, table string, columns []Col, wf WhereFunc[Col], orderBy OrderWriter[Col], limit int64) {
 	const (
 		sselect = "SELECT "
+		order   = " ORDER BY "
 		slimit  = " LIMIT "
 	)
 
@@ -148,6 +150,10 @@ func (b *Builder[Col]) Select(schema, table string, columns []Col, wf WhereFunc[
 
 	if wf != nil {
 		wf(b)
+	}
+
+	if orderBy != nil {
+		orderBy.writeTo(b)
 	}
 
 	if limit > 0 {

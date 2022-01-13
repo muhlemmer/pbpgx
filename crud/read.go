@@ -27,11 +27,11 @@ import (
 	"github.com/muhlemmer/pbpgx/query"
 )
 
-func (tab *Table[Col, Record, ID]) selectQuery(columns []Col, wf query.WhereFunc[Col], limit int64) string {
+func (tab *Table[Col, Record, ID]) selectQuery(columns []Col, wf query.WhereFunc[Col], orderBy query.OrderWriter[Col], limit int64) string {
 	b := tab.pool.Get()
 	defer tab.pool.Put(b)
 
-	b.Select(tab.schema, tab.table, columns, wf, limit)
+	b.Select(tab.schema, tab.table, columns, wf, orderBy, limit)
 	return b.String()
 }
 
@@ -39,7 +39,7 @@ func (tab *Table[Col, Record, ID]) selectQuery(columns []Col, wf query.WhereFunc
 // The returned message will be of type Record,
 // with the fields corresponding to columns populated.
 func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor, id ID, columns []Col) (record Record, err error) {
-	record, err = pbpgx.QueryRow[Record](ctx, x, tab.selectQuery(columns, query.WhereID[Col], 1), id)
+	record, err = pbpgx.QueryRow[Record](ctx, x, tab.selectQuery(columns, query.WhereID[Col], nil, 1), id)
 	if err != nil {
 		return record, fmt.Errorf("Table %s ReadOne: %w", tab.name(), err)
 	}
@@ -50,8 +50,8 @@ func (tab *Table[Col, Record, ID]) ReadOne(ctx context.Context, x pbpgx.Executor
 // ReadAll records up to limit from a table.
 // The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
-func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor, limit int64, columns []Col) ([]Record, error) {
-	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, nil, limit))
+func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor, limit int64, columns []Col, orderBy query.OrderWriter[Col]) ([]Record, error) {
+	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, nil, orderBy, limit))
 	if err != nil {
 		return nil, fmt.Errorf("Table %s ReadAll: %w", tab.name(), err)
 	}
@@ -62,14 +62,14 @@ func (tab *Table[Col, Record, ID]) ReadAll(ctx context.Context, x pbpgx.Executor
 // ReadList returns a list of records from a table, identified by ids.
 // The returned messages will be a slice of type Record,
 // with the fields corresponding to columns populated.
-func (tab *Table[Col, Record, ID]) ReadList(ctx context.Context, x pbpgx.Executor, ids []ID, columns []Col) ([]Record, error) {
+func (tab *Table[Col, Record, ID]) ReadList(ctx context.Context, x pbpgx.Executor, ids []ID, columns []Col, orderBy query.OrderWriter[Col]) ([]Record, error) {
 	args := make([]interface{}, len(ids))
 
 	for i, id := range ids {
 		args[i] = id
 	}
 
-	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, query.WhereIDInFunc[Col](len(ids)), 0), args...)
+	records, err := pbpgx.Query[Record](ctx, x, tab.selectQuery(columns, query.WhereIDInFunc[Col](len(ids)), orderBy, 0), args...)
 	if err != nil {
 		return nil, fmt.Errorf("Table %s ReadList: %w", tab.name(), err)
 	}
