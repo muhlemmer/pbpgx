@@ -32,40 +32,70 @@ import (
 )
 
 func TestParseFields(t *testing.T) {
-	msg := &support.Simple{
-		Id:    78,
-		Title: "foo bar",
-		Data:  "",
-	}
-
 	tests := []struct {
 		name      string
+		msg       proto.Message
 		skipEmpty bool
 		ignore    []string
 		want      ColNames
 	}{
 		{
 			"no skip",
+			&support.Simple{
+				Id:    78,
+				Title: "foo bar",
+				Data:  "",
+			},
 			false,
 			nil,
 			ColNames{"id", "title", "data", "created"},
 		},
 		{
 			"skip empty",
+			&support.Simple{
+				Id:    78,
+				Title: "foo bar",
+				Data:  "",
+			},
 			true,
 			nil,
 			ColNames{"id", "title"},
 		},
 		{
 			"ignore id, title",
+			&support.Simple{
+				Id:    78,
+				Title: "foo bar",
+				Data:  "",
+			},
 			false,
 			[]string{"id", "title"},
 			ColNames{"data", "created"},
 		},
+		{
+			"all supported",
+			&support.Supported{},
+			false,
+			nil,
+			ColNames{
+				"bl", "i32", "i64", "f", "d", "s", "bt", "u32", "u64", "ts",
+				"r_bl", "r_i32", "r_i64", "r_f", "r_d", "r_s", "r_u32", "r_bt", "r_u64", "r_ts",
+				"ob", "oi",
+			},
+		},
+		{
+			"oneOf",
+			&support.Supported{
+				O: &support.Supported_Ob{Ob: true},
+			},
+			true,
+			nil,
+			ColNames{"ob"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseFields(msg, tt.skipEmpty, tt.ignore...)
+			got := ParseFields(tt.msg, tt.skipEmpty, tt.ignore...)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("query.fieldNames =\n%v\nwant\n%v", got, tt.want)
@@ -164,6 +194,30 @@ func TestColumns_ParseArgs(t *testing.T) {
 					Time:   time.Unix(12, 34),
 					Status: pgtype.Present,
 				},
+			},
+			false,
+		},
+		{
+			"supported",
+			nil,
+			args{
+				msg: &support.Supported{
+					I32: 32,
+					Ts: &timestamppb.Timestamp{
+						Seconds: 12,
+						Nanos:   34,
+					},
+					O: &support.Supported_Ob{Ob: true},
+				},
+				cols: []string{"i32", "ts", "ob"},
+			},
+			[]interface{}{
+				&pgtype.Int4{Int: 32, Status: pgtype.Present},
+				&pgtype.Timestamptz{
+					Time:   time.Unix(12, 34),
+					Status: pgtype.Present,
+				},
+				&pgtype.Bool{Bool: true, Status: pgtype.Present},
 			},
 			false,
 		},

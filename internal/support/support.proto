@@ -48,6 +48,11 @@ message Supported {
     repeated bytes r_bt = 18;
     repeated uint64 r_u64 = 19;
     repeated google.protobuf.Timestamp r_ts = 20;
+
+    oneof o {
+        bool ob = 21;
+        int32 oi = 22;
+    }
 }
 
 // Unsupported scan destination types (for now)
