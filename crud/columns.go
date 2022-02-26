@@ -20,11 +20,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
-	"constraints"
 	"fmt"
 
 	"github.com/jackc/pgtype"
 	"github.com/muhlemmer/pbpgx/internal/value"
+	"golang.org/x/exp/constraints"
 	"google.golang.org/protobuf/proto"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"

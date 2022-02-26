@@ -20,9 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package crud
 
 import (
-	"constraints"
-
 	"github.com/muhlemmer/pbpgx/query"
+	"golang.org/x/exp/constraints"
 	"google.golang.org/protobuf/proto"
 )
 

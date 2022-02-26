@@ -20,10 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package value
 
 import (
-	"constraints"
 	"fmt"
 
 	"github.com/jackc/pgtype"
+	"golang.org/x/exp/constraints"
 	pr "google.golang.org/protobuf/reflect/protoreflect"
 )
 

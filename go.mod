@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgtype v1.8.1
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/muhlemmer/stringx v0.0.0-20211118131336-d772921e8f56
+	golang.org/x/exp v0.0.0-20220218215828-6cf2b201936e
 	google.golang.org/protobuf v1.27.1
 )
 
