@@ -11,13 +11,13 @@ services:
     ports:
       - 127.0.0.1:6061:6060
     volumes:
-      - .:/workspace:cached
+      - .:/workspace/pbpgx:cached
       - ${HOME}/.ssh:/home/vscode/.ssh
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
-    command: /bin/bash -c "cd /workspace && godoc -http :6060"
+    command: /bin/bash -c "cd /workspace/pbpgx && godoc -http :6060"
 
   db:
     image: postgres:latest

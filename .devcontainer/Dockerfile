@@ -1,4 +1,4 @@
-FROM golang:1.18-rc
+FROM golang:1.19
 
 RUN apt-get update && \
     apt-get upgrade -y && \

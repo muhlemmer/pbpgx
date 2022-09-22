@@ -3,7 +3,7 @@
     "dockerComposeFile": "../docker-compose.yml",
 	"service": "app",
 	"shutdownAction": "stopCompose",
-	"workspaceFolder": "/workspace",
+	"workspaceFolder": "/workspace/pbpgx",
 
     "extensions": [
 		"golang.go",
@@ -13,7 +13,7 @@
 
     "settings": {
         "go.toolsManagement.checkForUpdates": "local",
-		"go.useLanguageServer": true,
+		"go.useLanguageServer": true
     },
 
     "postCreateCommand": "go mod download",
